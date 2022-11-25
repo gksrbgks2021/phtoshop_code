@@ -31,7 +31,6 @@ class MyApp(QMainWindow):
         self.add_widget()
         self.show() #화면에 띄우기
 
-
     #버튼 추가
     def add_btn(self):
         #불러오기 버튼 
@@ -50,15 +49,18 @@ class MyApp(QMainWindow):
         img_path_btn = QPushButton('저 장', self)
         img_path_btn.resize(img_path_btn.sizeHint())
         img_path_btn.setToolTip('이미지를 불러옵니다')
-        img_path_btn.clicked.connect(self.savefile) #버튼 이벤트 처리 
+        img_path_btn.clicked.connect(self.save_img) #버튼 이벤트 처리 
         img_path_btn.move(1200, 770) #가로, 세로
-        
-    def add_widget(self):
+    
+    def add_widget(self): # 위젯 추가
         self.img_widget = ImageWidget(self,event_flag=True)
-        self.layout = QtWidgets.QFormLayout(self.img_widget)
+        #self.layout = QtWidgets.QFormLayout(self.img_widget)
         self.img_widget.setGeometry(140,130,600,470)
         self.img_widget.setStyleSheet('border : 2px solid gray;')
 
+        self.ctrl_widget = ctrl_Widget(self)
+        self.ctrl_widget.setStyleSheet('background: red;')
+        
     #메뉴바 추가
     def add_menubar(self):
         exitAction = QAction('&Exit', self)        
@@ -97,6 +99,20 @@ class MyApp(QMainWindow):
         if self.widget_cnt > 0:#도커 창 닫기
             dock.close()
 
+    def save_img(self):
+        if self.img_original is not None:
+            img_file_path, _ = QFileDialog.getSaveFileName(self, "Save Image", 
+                "", "PNG Files (*.png);;JPG Files (*.jpeg *.jpg );;")
+
+            if img_file_path and self.img_original is not None:
+                cv2.imwrite(img_file_path, self.img_original)
+            else:
+                QMessageBox.information(self, "Error", 
+                    "Unable to save image.", QMessageBox.Ok)
+        else:
+            QMessageBox.information(self, "Empty Image", 
+                    "There is no image to save.", QMessageBox.Ok)
+
     def show_img_original(self): #도킹 위젯에 원본 뛰우기 
         global dock
         self.widget_cnt = self.widget_cnt+1
@@ -110,8 +126,7 @@ class MyApp(QMainWindow):
         dock.show()
 
     def mouseMoveEvent(self, event):#마우스 움직임 이벤트 
-        if self.img_widget.get_focus():
-            self.update_statusBar(event)
+        pass
 
     def focus_on(self):#이미지 프레임 포커싱 인  
         print('포커싱 인')
@@ -134,7 +149,6 @@ class MyApp(QMainWindow):
         self.img_widget.show()
 ####################################################################################################################
 
-
 ############################################이미지 위젯 클래스#########################################################
 class ImageWidget(QtWidgets.QWidget):
     event_flag = False # 콜백 함수 실행 여부 플래그
@@ -142,7 +156,7 @@ class ImageWidget(QtWidgets.QWidget):
     
     def __init__(self, parent=None,event_flag = False):
         super(ImageWidget, self).__init__(parent)
-
+        self.setMouseTracking(True)
         self.image_frame = QLabel(self) #이미지 프레임 생성
         self.image = np.zeros((3,3),np.uint8)
         self.image_frame.setAlignment(QtCore.Qt.AlignCenter)
@@ -159,8 +173,13 @@ class ImageWidget(QtWidgets.QWidget):
         self.image = img
         self.show_image()
 
+    def mouseMoveEvent(self, event):#마우스 움직임 이벤트  
+        if self.event_flag:
+            print('자식')
+            self.parent.update_statusBar(event)
+
     @pyqtSlot()
-    def show_image(self):
+    def show_image(self): # Qimage 객체가 필요하다. 
         self.image = QtGui.QImage(self.image.data, self.image.shape[1], self.image.shape[0], QtGui.QImage.Format_RGB888).rgbSwapped()
         self.image_frame.setPixmap(QtGui.QPixmap.fromImage(self.image))
     
@@ -169,6 +188,7 @@ class ImageWidget(QtWidgets.QWidget):
             self.parent.focus_on()
             self.focus = True
             print('hover')
+    #todo 들어오면 마우스 감지, 화면에 이미지 띄우는 스레드 실행 하기
 
     def leaveEvent(self, event): #마우스 포커싱 나갈때
         if self.event_flag :
@@ -180,6 +200,57 @@ class ImageWidget(QtWidgets.QWidget):
         return self.focus
 
 
+
+############################################--------------#########################################################
+
+############################################컨트롤 위젯 클래스#########################################################
+class ctrl_Widget(QtWidgets.QWidget):
+#size 280 x 670 
+    def __init__(self, parent=None):        
+        super(ctrl_Widget, self).__init__(parent)
+        self.initUI()
+
+    def initUI(self):
+        label1 = QLabel('First Label', self)
+        label1.setAlignment(Qt.AlignCenter)
+
+        label2 = QLabel('Second Label', self)
+        label2.setAlignment(Qt.AlignVCenter)
+
+        font1 = label1.font()
+        font1.setPointSize(20)
+
+        font2 = label2.font()
+        font2.setFamily('Times New Roman')
+        font2.setBold(True)
+
+        label1.setFont(font1)
+        label2.setFont(font2)
+
+        layout = QVBoxLayout()
+        layout.addWidget(label1)
+        layout.addWidget(label2)
+
+        self.setLayout(layout)
+
+        self.setWindowTitle('QLabel')
+        self.setGeometry(850, 132, 300,600 )
+        self.show()
+
+
+
+    def add_label(self):
+        self.label_trackbar_r = QLabel('Red', self)
+        self.label_trackbar_g = QLabel('Green', self)
+        self.label_trackbar_b = QLabel('Blue', self)
+        self.label_trackbar_h = QLabel('Hue', self)
+        self.label_trackbar_s = QLabel('Saturation', self)
+        self.label_trackbar_v = QLabel('Value', self)
+    
+    
+        
+
+    
 
 ############################################--------------#########################################################
 if __name__ == '__main__': #실행이 main함수인 경우
