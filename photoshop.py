@@ -7,16 +7,19 @@ import matplotlib.pyplot as plt
 import os
 
 class MyApp(QMainWindow):
+    #전역변수 설정
+    img_original  = np.zeros((3,3),np.uint8)
+    img  = np.zeros((3,3),np.uint8)
+    img_list = []
+    widget_cnt = 0
+    focus_image_frame_flag = False #자식 마우스 이벤트 플래그
     
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)        
-        self.img_original  = np.zeros((3,3),np.uint8)
-        self.widget_cnt = 0
-
+        super().__init__(*args, **kwargs)      
+        self.setMouseTracking(True)
         self.initUI()
         
     def initUI(self): 
-
         self.setWindowIcon(QtGui.QIcon('./img/cat.jpg'))#이미지
         self.setStyleSheet('background : lightgray;')
         self.setGeometry(250, 130, 1300, 850)    
@@ -25,8 +28,9 @@ class MyApp(QMainWindow):
         self.setWindowTitle('PyQt5 포토샵 구현')#제목 설정
         self.layout = QVBoxLayout() #수직 레이아웃 설정
         self.setLayout(self.layout)
-
+        self.add_widget()
         self.show() #화면에 띄우기
+
 
     #버튼 추가
     def add_btn(self):
@@ -50,13 +54,10 @@ class MyApp(QMainWindow):
         img_path_btn.move(1200, 770) #가로, 세로
         
     def add_widget(self):
-        img_widget = ImageWidget()
-        self.flayout = QtWidgets.QFormLayout(img_widget)
-        self.setCentralWidget(img_widget)
-        
-    #QlineEdit 추가
-    def add_QlineEdit(self):
-        print('s')
+        self.img_widget = ImageWidget(self,event_flag=True)
+        self.layout = QtWidgets.QFormLayout(self.img_widget)
+        self.img_widget.setGeometry(140,130,600,470)
+        self.img_widget.setStyleSheet('border : 2px solid gray;')
 
     #메뉴바 추가
     def add_menubar(self):
@@ -65,8 +66,8 @@ class MyApp(QMainWindow):
         exitAction.setStatusTip('Exit application')
         exitAction.triggered.connect(qApp.quit)
 
-        self.statusBar()
-
+        #상태바 추가
+        self.add_statusbar()
 
         menubar = self.menuBar()
         fileMenu = menubar.addMenu('&File')
@@ -90,38 +91,71 @@ class MyApp(QMainWindow):
         #레이블에 띄웁니다. 
         #opencv 는 파일 입출력 할때 아스키 문자만 허용한다. 절대 경로사용 불가
         self.img_original = cv2.imdecode(np.fromfile(file_name[0], dtype=np.uint8),cv2.IMREAD_UNCHANGED)
-        if self.widget_cnt > 0:
+        self.img = self.img_original.copy()
+        self.update_img()
+        
+        if self.widget_cnt > 0:#도커 창 닫기
             dock.close()
 
-    def show_img_original(self):
+    def show_img_original(self): #도킹 위젯에 원본 뛰우기 
         global dock
         self.widget_cnt = self.widget_cnt+1
         # dock 위젯 만든다.  
         dock = QDockWidget('원 본',self)
-        img_widget = ImageWidget(self)
+        img_dock_widget = ImageWidget(self)
         #img_widget.set_image(self.img_original) #원본으로 설정
         # adding widget to the layout
-        dock.setWidget(img_widget)
-        # setting geometry tot he dock widget
-        dock.setGeometry(100, 100, 200, 300)
+        dock.setWidget(img_dock_widget)
+        dock.setGeometry(100, 100, 200, 200)
         dock.show()
+
+    def mouseMoveEvent(self, event):#마우스 움직임 이벤트 
+        if self.img_widget.get_focus():
+            self.update_statusBar(event)
+
+    def focus_on(self):#이미지 프레임 포커싱 인  
+        print('포커싱 인')
+        self.focus_image_frame_flag = True
+    def focus_off(self):#이미지 프레임 포커싱 아웃
+        self.focus_image_frame_flag = False
+        self.statusBar().clearMessage() #포커싱 아웃될때 메시지 제거 
 
     def savefile(self): #파일 저장하기 
         print('save file')     
 
+    def update_statusBar(self,event):
+        tracking_location  = "마우스 좌표 (x,y) = ({0}, {1}), global x,y = {2},{3}".format(event.x(),event.y(),event.globalX(),event.globalY())
+        self.statusBar().showMessage(tracking_location)
+        
+
+############################################이미지 프로세싱#########################################################
+    def update_img(self):
+        self.img_widget.set_image(self.img)
+        self.img_widget.show()
+####################################################################################################################
+
+
+############################################이미지 위젯 클래스#########################################################
 class ImageWidget(QtWidgets.QWidget):
-    def __init__(self, parent=None):
+    event_flag = False # 콜백 함수 실행 여부 플래그
+    focus = False # 마우스 포커싱 실행 여부 
+    
+    def __init__(self, parent=None,event_flag = False):
         super(ImageWidget, self).__init__(parent)
-        self.image_frame = QLabel() #이미지 프레임 생성
+
+        self.image_frame = QLabel(self) #이미지 프레임 생성
         self.image = np.zeros((3,3),np.uint8)
+        self.image_frame.setAlignment(QtCore.Qt.AlignCenter)
 
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.image_frame)
         self.setLayout(self.layout)
-        self.set_image(parent.img_original)
+        if parent is not None:
+            self.set_image(parent.img_original)
+        self.event_flag = event_flag #이벤트 플래그 설정
+        self.parent = parent
 
     def set_image(self,img): #이미지 변경
-        print('a')
         self.image = img
         self.show_image()
 
@@ -129,7 +163,25 @@ class ImageWidget(QtWidgets.QWidget):
     def show_image(self):
         self.image = QtGui.QImage(self.image.data, self.image.shape[1], self.image.shape[0], QtGui.QImage.Format_RGB888).rgbSwapped()
         self.image_frame.setPixmap(QtGui.QPixmap.fromImage(self.image))
+    
+    def enterEvent(self, event): #들어온다.
+        if self.event_flag :
+            self.parent.focus_on()
+            self.focus = True
+            print('hover')
 
+    def leaveEvent(self, event): #마우스 포커싱 나갈때
+        if self.event_flag :
+            self.parent.focus_off()
+            self.focus = False
+            print('left')
+
+    def get_focus(self):
+        return self.focus
+
+
+
+############################################--------------#########################################################
 if __name__ == '__main__': #실행이 main함수인 경우
     app = QApplication(sys.argv)
     ex = MyApp()
