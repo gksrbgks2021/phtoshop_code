@@ -94,7 +94,8 @@ class MyApp(QMainWindow):
         #opencv 는 파일 입출력 할때 아스키 문자만 허용한다. 절대 경로사용 불가
         self.img_original = cv2.imdecode(np.fromfile(file_name[0], dtype=np.uint8),cv2.IMREAD_UNCHANGED)
         self.img = self.img_original.copy()
-        self.update_img()
+        
+        self.update_img(self.img) #이미지 업데이트
         
         if self.widget_cnt > 0:#도커 창 닫기
             dock.close()
@@ -125,9 +126,6 @@ class MyApp(QMainWindow):
         dock.setGeometry(100, 100, 200, 200)
         dock.show()
 
-    def mouseMoveEvent(self, event):#마우스 움직임 이벤트 
-        pass
-
     def focus_on(self):#이미지 프레임 포커싱 인  
         print('포커싱 인')
         self.focus_image_frame_flag = True
@@ -144,9 +142,35 @@ class MyApp(QMainWindow):
         
 
 ############################################이미지 프로세싱#########################################################
-    def update_img(self):
-        self.img_widget.set_image(self.img)
+    def update_img(self,img):
+        self.img_widget.set_image(img)
         self.img_widget.show()
+
+    #이미지 원래 비율대로 맞추서ㅓ 사이즈 조정한다. 
+    def img_resize(image, width = None, height = None, inter = cv2.INTER_AREA):#inter area는 cv2제공하는 양선형 보간법이다. 
+        if width is None and height is None:#widght, height 값이 없으면 
+            return image
+        # 이미지 widght, height
+        dim = None
+        (h, w) = image.shape[:2]
+
+        # check to see if the width is None
+        if width is None:
+            # calculate the ratio of the height and construct the
+            # dimensions
+            r = height / float(h)
+            dim = (int(w * r), height)
+
+        # otherwise, the height is None
+        else:
+            # calculate the ratio of the width and construct the
+            # dimensions
+            r = width / float(w)
+            dim = (width, int(h * r))
+
+        #크기 재조정. 
+        resized = cv2.resize(image, dim, interpolation = inter)
+        return resized
 ####################################################################################################################
 
 ############################################이미지 위젯 클래스#########################################################
@@ -172,8 +196,8 @@ class ImageWidget(QtWidgets.QWidget):
     def set_image(self,img): #이미지 변경
         self.image = img
         self.show_image()
-
-    def mouseMoveEvent(self, event):#마우스 움직임 이벤트  
+        
+    def d_mouseMoveEvent(self, event):#마우스 움직임 이벤트  
         if self.event_flag:
             print('자식')
             self.parent.update_statusBar(event)
@@ -189,6 +213,11 @@ class ImageWidget(QtWidgets.QWidget):
             self.focus = True
             print('hover')
     #todo 들어오면 마우스 감지, 화면에 이미지 띄우는 스레드 실행 하기
+
+    def mouseMoveEvent(self, event):#마우스 움직임 이벤트 
+        print('마우스 움직임')
+       #self.img_widget.my_onMouse(event)
+        self.parent.update_statusBar(event)
 
     def leaveEvent(self, event): #마우스 포커싱 나갈때
         if self.event_flag :
@@ -207,7 +236,7 @@ class ImageWidget(QtWidgets.QWidget):
 class ctrl_Widget(QtWidgets.QWidget):
 #size 280 x 670 
     def __init__(self, parent=None):        
-        super(ctrl_Widget, self).__init__(parent)
+        super(ctrl_Widget, self).__init__(parent) # mainwindow 안에 위젯 추가
         self.initUI()
 
     def initUI(self):
@@ -232,12 +261,7 @@ class ctrl_Widget(QtWidgets.QWidget):
         layout.addWidget(label2)
 
         self.setLayout(layout)
-
-        self.setWindowTitle('QLabel')
         self.setGeometry(850, 132, 300,600 )
-        self.show()
-
-
 
     def add_label(self):
         self.label_trackbar_r = QLabel('Red', self)
