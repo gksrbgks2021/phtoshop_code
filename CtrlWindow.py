@@ -8,7 +8,7 @@ class CtrlWindow(QFrame):
     def __init__(self, parent):
         QFrame.__init__(self, parent)
         self.parent = parent
-        self.rgb = [128, 128, 128]
+        self.rgb = [128,128,128]
 
         self.init_ui()
 
@@ -41,7 +41,7 @@ class CtrlWindow(QFrame):
         self.r_level.setTickInterval(64)#간격 설정
         self.r_level.setMinimum(0)# 0 .. 255 
         self.r_level.setMaximum(255)
-        self.r_level.setValue(128)
+        self.r_level.setValue(self.rgb[0])
         self.tab1.layout.addWidget(self.r_level)
         self.r_level.valueChanged.connect(self.change_r)#이벤트
 
@@ -52,7 +52,7 @@ class CtrlWindow(QFrame):
         self.g_level.setTickInterval(64)
         self.g_level.setMinimum(0)# 0 .. 255 
         self.g_level.setMaximum(255)
-        self.g_level.setValue(128)
+        self.g_level.setValue(self.rgb[1])
         self.tab1.layout.addWidget(self.g_level)
         self.g_level.valueChanged.connect(self.change_g)
 
@@ -63,7 +63,7 @@ class CtrlWindow(QFrame):
         self.b_level.setTickInterval(64)
         self.b_level.setMinimum(0)# 0 .. 255 
         self.b_level.setMaximum(255)
-        self.b_level.setValue(128)
+        self.b_level.setValue(self.rgb[2])
         self.tab1.layout.addWidget(self.b_level)
         self.b_level.valueChanged.connect(self.change_b)
 
@@ -77,29 +77,28 @@ class CtrlWindow(QFrame):
        # btn7.clicked.connect(self.parent.handler.handle_threshold)
         self.tab1.layout.addWidget(btn7)
 
-    def init_coordinates(self):
-        btn1 = QPushButton('Clipboard')
-        btn1.setIcon(QIcon('Icons/clipboard.png'))
-        #btn1.clicked.connect(self.parent.handler.handle_clipboard)
-        self.tab2.layout.addWidget(btn1)
-        self.tab2.layout.addWidget(QLabel(" "))
-
     def change_r(self):
-        self.rgb[0] = self.r_level.value()#슬라이더의 빨간 값을 가져온다. 
-        self.parent.rgb[0] = self.rgb[0]
+        dif = self.r_level.value() - self.rgb[0] #차이 만큼 변화 시킨다.
+        self.rgb[0] = self.r_level.value()#슬라이더의 빨간 값을 가져온다.
+        self.parent.update_r(dif)
         self.update_rgb_label()
 
     def change_g(self):
+        dif = self.r_level.value() - self.rgb[1]
         self.rgb[1] = self.g_level.value()#슬라이더의 초록 값을 가져온다. 
-        self.parent.rgb[1] = self.rgb[1]
+        self.parent.update_g(dif)
         self.update_rgb_label()
 
     def change_b(self):
+        dif = self.r_level.value() - self.rgb[2]
         self.rgb[2] = self.b_level.value()#슬라이더의 파랑 값을 가져온다. 
-        self.parent.rgb[2] = self.rgb[2]
+        self.parent.update_b(dif)
         self.update_rgb_label()
     
-    def update_rgb_label(self):
+    def update_rgb_label(self,rb = None):
+        if rb:
+            self.rgb = rb
+
         self.r_level_label.setText("빨 강 : " + str(self.rgb[0]))
         self.g_level_label.setText("초 록 : " + str(self.rgb[1]))
         self.b_level_label.setText("파 랑 : " + str(self.rgb[2]))

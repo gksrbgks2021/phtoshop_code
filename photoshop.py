@@ -10,7 +10,6 @@ import os
 
 from CtrlWindow import CtrlWindow 
 
-
 class Photoshop(QMainWindow):
     #전역변수 설정
     img_original  = np.zeros((3,3),np.uint8)
@@ -107,20 +106,29 @@ class Photoshop(QMainWindow):
         self.img_original = cv2.imdecode(np.fromfile(file_name[0], dtype=np.uint8),cv2.IMREAD_UNCHANGED)
         self.img = self.img_original.copy()
         
-        #rgb배열 값 할당.
-        b,g,r = cv2.split(self.img_original)#rgb 분리
-        self.rgb = [r,g,b]
+        #rgb 평균값 할당.
+        self.rgb = []
+        a,b,c = cv2.split(self.img_original)
+        self.rgb_2d_array =[c,b,a]
 
-        self.update_img(self.img) #이미지 업데이트
+        mean_ch = cv2.mean(self.img)
         
+        self.rgb.append(int(mean_ch[2]))
+        self.rgb.append(int(mean_ch[1]))
+        self.rgb.append(int(mean_ch[0]))
+        
+        self.update_img(self.img) #이미지 업데이트
+        self.ctrl_widget.update_rgb_label(rb = self.rgb)
+
         if self.widget_cnt > 0:#도커 창 닫기
             dock.close()
 
     def save_img(self):
         if self.img_original is not None:
+            print('어?')
             img_file_path, _ = QFileDialog.getSaveFileName(self, "Save Image", 
                 "", "PNG Files (*.png);;JPG Files (*.jpeg *.jpg );;")
-
+            print(img_file_path)
             if img_file_path and self.img_original is not None:
                 cv2.imwrite(img_file_path, self.img_original)
             else:
@@ -165,13 +173,32 @@ class Photoshop(QMainWindow):
     def update_statusBar(self,event):
         tracking_location  = "마우스 좌표 (x,y) = ({0}, {1}), global x,y = {2},{3}".format(event.x(),event.y(),event.globalX(),event.globalY())
         self.statusBar().showMessage(tracking_location)
-        
+
+    
 
 ############################################이미지 프로세싱#########################################################
     def update_img(self,img):
         self.img_widget.set_image(img)
-        self.img_widget.show()
-    
+
+    def update_r(self,dif):
+        self.rgb[0] = cv2.add(self.rgb[0] , dif)#연산을 한다. 
+        self.rgb_2d_array[0] = cv2.add(self.rgb_2d_array[0],dif)
+        self.update_image_rgb()
+
+    def update_g(self,dif):
+        self.rgb[1] = cv2.add(self.rgb[1] , dif)
+        self.rgb_2d_array[1] = cv2.add(self.rgb_2d_array[1],dif)
+        self.update_image_rgb()
+
+    def update_b(self,dif):
+        self.rgb[2] = cv2.add(self.rgb[2] , dif)
+        self.rgb_2d_array[2] = cv2.add(self.rgb_2d_array[2],dif)
+        self.update_image_rgb()
+
+    def update_image_rgb(self):
+        im = cv2.merge(self.rgb_2d_array)
+        self.update_img(im)
+        
     #이미지 w, h 비율대로 resize 해서 왜곡을 피한다. 
     #코드 사용 예 image = image_resize(image, height = 800)
     def img_resize(image, width = None, height = None, inter = cv2.INTER_AREA):#inter area는 cv2제공하는 양선형 보간법이다. 
