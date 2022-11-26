@@ -4,9 +4,14 @@ from PyQt5 import QtGui, QtCore, QtWidgets
 from PyQt5.QtCore import *
 import numpy as np, cv2
 import matplotlib.pyplot as plt
+import math
+import random
 import os
 
-class MyApp(QMainWindow):
+from CtrlWindow import CtrlWindow 
+
+
+class Photoshop(QMainWindow):
     #전역변수 설정
     img_original  = np.zeros((3,3),np.uint8)
     img  = np.zeros((3,3),np.uint8)
@@ -14,6 +19,9 @@ class MyApp(QMainWindow):
     widget_cnt = 0
     focus_image_frame_flag = False #자식 마우스 이벤트 플래그
     
+    #이미지 값 조정
+    rgb = [128, 128, 128]
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)      
         self.setMouseTracking(True)
@@ -28,7 +36,8 @@ class MyApp(QMainWindow):
         self.setWindowTitle('PyQt5 포토샵 구현')#제목 설정
         self.layout = QVBoxLayout() #수직 레이아웃 설정
         self.setLayout(self.layout)
-        self.add_widget()
+
+        self.add_widget(self.layout)
         self.show() #화면에 띄우기
 
     #버튼 추가
@@ -52,15 +61,18 @@ class MyApp(QMainWindow):
         img_path_btn.clicked.connect(self.save_img) #버튼 이벤트 처리 
         img_path_btn.move(1200, 770) #가로, 세로
     
-    def add_widget(self): # 위젯 추가
+    def add_widget(self,layout): # 위젯 추가
         self.img_widget = ImageWidget(self,event_flag=True)
         #self.layout = QtWidgets.QFormLayout(self.img_widget)
         self.img_widget.setGeometry(140,130,600,470)
         self.img_widget.setStyleSheet('border : 2px solid gray;')
 
-        self.ctrl_widget = ctrl_Widget(self)
-        self.ctrl_widget.setStyleSheet('background: red;')
+        self.ctrl_widget = CtrlWindow(self)
+        self.ctrl_widget.setGeometry(820,130,250,470)
         
+        layout.addWidget(self.img_widget)
+        layout.addWidget(self.ctrl_widget)
+
     #메뉴바 추가
     def add_menubar(self):
         exitAction = QAction('&Exit', self)        
@@ -95,6 +107,10 @@ class MyApp(QMainWindow):
         self.img_original = cv2.imdecode(np.fromfile(file_name[0], dtype=np.uint8),cv2.IMREAD_UNCHANGED)
         self.img = self.img_original.copy()
         
+        #rgb배열 값 할당.
+        b,g,r = cv2.split(self.img_original)#rgb 분리
+        self.rgb = [r,g,b]
+
         self.update_img(self.img) #이미지 업데이트
         
         if self.widget_cnt > 0:#도커 창 닫기
@@ -126,6 +142,16 @@ class MyApp(QMainWindow):
         dock.setGeometry(100, 100, 200, 200)
         dock.show()
 
+    def mousePressEvent(self, event):
+        pass
+
+    def mouseMoveEvent(self, event):
+        pass
+
+    def mouseReleaseEvent(self, event):
+        pass
+
+
     def focus_on(self):#이미지 프레임 포커싱 인  
         print('포커싱 인')
         self.focus_image_frame_flag = True
@@ -145,33 +171,65 @@ class MyApp(QMainWindow):
     def update_img(self,img):
         self.img_widget.set_image(img)
         self.img_widget.show()
-
-    #이미지 원래 비율대로 맞추서ㅓ 사이즈 조정한다. 
+    
+    #이미지 w, h 비율대로 resize 해서 왜곡을 피한다. 
+    #코드 사용 예 image = image_resize(image, height = 800)
     def img_resize(image, width = None, height = None, inter = cv2.INTER_AREA):#inter area는 cv2제공하는 양선형 보간법이다. 
-        if width is None and height is None:#widght, height 값이 없으면 
+        if width is None and height is None:#widght, height 값이 없으면 연산 안 함.
             return image
         # 이미지 widght, height
         dim = None
         (h, w) = image.shape[:2]
 
-        # check to see if the width is None
-        if width is None:
-            # calculate the ratio of the height and construct the
-            # dimensions
+        if width is None: # height 값을 파라미터로.
             r = height / float(h)
             dim = (int(w * r), height)
-
-        # otherwise, the height is None
-        else:
-            # calculate the ratio of the width and construct the
-            # dimensions
-            r = width / float(w)
+        else:           #width 값이 파라미터로 주어졌을때.
+            r = width / float(w) # width 비율을 구하고 디멘션 생성
             dim = (width, int(h * r))
 
         #크기 재조정. 
         resized = cv2.resize(image, dim, interpolation = inter)
         return resized
-####################################################################################################################
+    
+    #화이트 노이즈 뿌리는 함수
+    def add_noise(img):
+        global weight
+        b,g,r = cv2.split(img)#rgb 분리
+        rgb_list = [r,g,b]
+
+        # img의 행 열을 가져온다.
+        row , col = rgb_list[0].shape
+        weight = int(math.sqrt(row * col // 40000)) #크기에 따른 노이즈 크기 조절
+        if weight < 1 : weight =1 
+        # 노이즈 개수 지정
+        number_of_pixels = 10000*weight
+        print(weight)
+        for j in range(number_of_pixels):
+            #랜덤 좌표에다 노이즈 부여 
+            y=random.randint(0, row - 1-weight)
+            x=random.randint(0, col - 1-weight)
+            
+            for i in range(3):#rgb 위치는 동일
+                div_img = rgb_list[i] #rgb 리스트 하나 불러온 다음  
+                #div_img[y:y+2][x:x+2] = 255 #(255,255,255) 가중치 네모 사이즈 만큼 흰색 노이즈 뿌린다.
+                for a in range(weight):
+                    for b in range(weight):
+                        div_img[y+a][x+b] = 255
+        
+        img = cv2.merge(rgb_list) #rgb 합침
+        return img
+    
+    #점묘법 필터 함수 
+    def pointillism_filter(self,img):
+        img_noise = self.add_noise(img.copy())
+        kernel = np.ones((3*weight+1,3*weight+1), np.uint8) / 9 # 가중치에 따른 마스크 생성
+        img_noise = cv2.erode(img_noise,kernel) #erode 연산으로 화이트 노이즈 없엠.
+        return img_noise
+    
+    def get_rgb(self):
+        return self.rgb
+#############################################----------------#######################################################
 
 ############################################이미지 위젯 클래스#########################################################
 class ImageWidget(QtWidgets.QWidget):
@@ -213,6 +271,11 @@ class ImageWidget(QtWidgets.QWidget):
             self.focus = True
             print('hover')
     #todo 들어오면 마우스 감지, 화면에 이미지 띄우는 스레드 실행 하기
+    def mousePressEvent(self, event):
+        pass
+
+    def mouseReleaseEvent(self, event):
+        pass
 
     def mouseMoveEvent(self, event):#마우스 움직임 이벤트 
         print('마우스 움직임')
@@ -232,52 +295,7 @@ class ImageWidget(QtWidgets.QWidget):
 
 ############################################--------------#########################################################
 
-############################################컨트롤 위젯 클래스#########################################################
-class ctrl_Widget(QtWidgets.QWidget):
-#size 280 x 670 
-    def __init__(self, parent=None):        
-        super(ctrl_Widget, self).__init__(parent) # mainwindow 안에 위젯 추가
-        self.initUI()
-
-    def initUI(self):
-        label1 = QLabel('First Label', self)
-        label1.setAlignment(Qt.AlignCenter)
-
-        label2 = QLabel('Second Label', self)
-        label2.setAlignment(Qt.AlignVCenter)
-
-        font1 = label1.font()
-        font1.setPointSize(20)
-
-        font2 = label2.font()
-        font2.setFamily('Times New Roman')
-        font2.setBold(True)
-
-        label1.setFont(font1)
-        label2.setFont(font2)
-
-        layout = QVBoxLayout()
-        layout.addWidget(label1)
-        layout.addWidget(label2)
-
-        self.setLayout(layout)
-        self.setGeometry(850, 132, 300,600 )
-
-    def add_label(self):
-        self.label_trackbar_r = QLabel('Red', self)
-        self.label_trackbar_g = QLabel('Green', self)
-        self.label_trackbar_b = QLabel('Blue', self)
-        self.label_trackbar_h = QLabel('Hue', self)
-        self.label_trackbar_s = QLabel('Saturation', self)
-        self.label_trackbar_v = QLabel('Value', self)
-    
-    
-        
-
-    
-
-############################################--------------#########################################################
 if __name__ == '__main__': #실행이 main함수인 경우
     app = QApplication(sys.argv)
-    ex = MyApp()
+    ex = Photoshop()
     sys.exit(app.exec_())
