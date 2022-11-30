@@ -7,10 +7,13 @@ import matplotlib.pyplot as plt
 import math
 import random
 import os
+import re
 
 from CtrlWindow import CtrlWindow 
+from RgbFrame import RgbFrame
 
 class Photoshop(QMainWindow):
+    
     #전역변수 설정
     img_original  = np.zeros((3,3),np.uint8)#원본. 업데이트 안 함 
     img  = np.zeros((3,3),np.uint8)#현재 화면에 보여주는 이미지  
@@ -68,49 +71,20 @@ class Photoshop(QMainWindow):
         #이미지 위젯입니다.
         self.img_widget = ImageWidget(self,event_flag=True)
         #self.layout = QtWidgets.QFormLayout(self.img_widget)
-        self.img_widget.setGeometry(140,130,700,700)
+        self.img_widget.setGeometry(140,130,700,700)#이미지 최대 크기 700 700 
         self.img_widget.setStyleSheet('border : 2px solid gray;')
 
         self.ctrl_widget = CtrlWindow(self)
         self.ctrl_widget.setGeometry(900,130,250,470)
         
+        self.rgb_frame = RgbFrame(self)
+        self.rgb_frame.setGeometry(950,130,250,270)
+        self.rgb_frame.hide()
+        
         layout.addWidget(self.img_widget)
         layout.addWidget(self.ctrl_widget)
-    
-    def myflip(self,img): #이미지 뒤집기
-        i_len = len(img)
-        j_len = len(img[0])
-        img_flip = np.zeros_like(img)
-
-        for i in range(i_len):
-            for j in range(j_len):
-                img_flip[i,j]  = img[i,j_len-j-1] #반대 위치의 픽셀 덮어씌운다. 
-        return img_flip
-
-    def myrotate_90(self,img): #이미지 90도 회전 
-        img_rotate_quarter = np.zeros_like(img)
-        i = len(img_rotate_quarter)
-        j = len(img_rotate_quarter[0])
-        #print('shape: {0} i : {1} j : {2} '.format(img_rotate_quarter.shape,i,j))
-        img_rotate_quarter = img_rotate_quarter.reshape(j,i,-1)
-
-        i = len(img_rotate_quarter)
-        j = len(img_rotate_quarter[0])
-        for j in range(len(img[0])):
-            for i in range(len(img)):
-                img_rotate_quarter[j,i] = img[i,j]
-        a = self.myflip(img_rotate_quarter) #좌우반전
-        return a
-
-    def flip(self):
+        layout.addWidget(self.rgb_frame)
         
-
-        pass
-
-    def rotate(self):
-
-        pass 
-
     #메뉴바 추가
     def add_menubar(self):
         exitAction = QAction('&Exit', self)        
@@ -130,7 +104,7 @@ class Photoshop(QMainWindow):
         reply = QMessageBox.question(self, '저장하시겠습니까?', quit_msg, QMessageBox.Yes, QMessageBox.No) #메시지박스
 
         if reply == QMessageBox.Yes:
-            self.save_file()
+            self.save_img()
 
         event.accept()
 
@@ -158,21 +132,24 @@ class Photoshop(QMainWindow):
         self.rgb.append(int(mean_ch[0]))
         
         self.display_img_widget(self.img) #이미지 업데이트
-        self.ctrl_widget.update_rgb_label(rb = self.rgb)
-
-        self.ctrl_widget.init_track(self.rgb)
+        #self.ctrl_widget.update_rgb_label(rb = self.rgb)
+        #self.ctrl_widget.init_track(self.rgb)
 
         if self.widget_cnt > 0:#도커 창 닫기
             dock.close()
 
     def save_img(self):
-        if self.img_original is not None:
-            print('어?')
+        if self.img is not None:
             img_file_path, _ = QFileDialog.getSaveFileName(self, "Save Image", 
                 "", "PNG Files (*.png);;JPG Files (*.jpeg *.jpg );;")
-            print(img_file_path)
-            if img_file_path and self.img_original is not None:
-                cv2.imwrite(img_file_path, self.img_original)
+            if img_file_path and self.img is not None:
+                print('저장진행')
+                cv2.imwrite(img_file_path, self.img)
+                if(re.search('.png',img_file_path)): #regex 로 문자 패턴 매칭 ~ 
+                    is_success, im_buf_arr = cv2.imencode('.png',self.img) #opencv는 아스키코드 경로만 읽는다. 유니코드는 인코딩이 필요. 1차원 넘파이 배열로 변환한다. 
+                else:
+                    is_success, im_buf_arr = cv2.imencode('.jpg',self.img)
+                im_buf_arr.tofile(img_file_path)
             else:
                 QMessageBox.information(self, "Error", 
                     "Unable to save image.", QMessageBox.Ok)
@@ -204,6 +181,7 @@ class Photoshop(QMainWindow):
     def focus_on(self):#이미지 프레임 포커싱 인  
         print('포커싱 인')
         self.focus_image_frame_flag = True
+
     def focus_off(self):#이미지 프레임 포커싱 아웃
         self.focus_image_frame_flag = False
         self.statusBar().clearMessage() #포커싱 아웃될때 메시지 제거
@@ -214,24 +192,6 @@ class Photoshop(QMainWindow):
     def update_statusBar(self,event):
         tracking_location  = "마우스 좌표 (x,y) = ({0}, {1}), global x,y = {2},{3}".format(event.x(),event.y(),event.globalX(),event.globalY())
         self.statusBar().showMessage(tracking_location)
-
-    #확인 버튼 클릭
-    def click_ok(self):
-        #이미지 업데이트
-        self.prev_img = self.img 
-        self.img_list[self.img_list_cnt] = self.prev_img
-        self.img_list_cnt += 1
-
-    def click_cancle(self):
-        self.img = self.prev_img
-        self.display_img_widget(self.img)
-        
-    #돌아가기
-    def redo(self):
-        if self.img_list_cnt > 0:
-            self.img_list_cnt -= 1
-            self.img = self.img_list[self.img_list_cnt]
-            self.display_img_widget(self.img)
         
     #rgb는 각 rgb의 평균 값임 !
     def get_rgb(self):
@@ -243,8 +203,79 @@ class Photoshop(QMainWindow):
     def get_b(self):
         return self.rgb[2]
 
+    def add_img_list(self):#이미지 리스트 업데이트 메소드 
+        self.prev_img = self.img 
+
+        if len(self.img_list) <= self.img_list_cnt:
+            self.img_list.append(self.prev_img)
+        else:
+            self.img_list[self.img_list_cnt] = self.prev_img
+        self.img_list_cnt += 1
+        pass
     def display_img_widget(self,img):
+        
         self.img_widget.set_image(img)
+#####################################################버튼 누르는 메소드 연결###################################
+    #확인 버튼 클릭
+    def click_ok(self):
+        #rgb 트랙바 숨김 이벤트 해제
+        self.rgb_frame.hide()
+        self.rgb_frame.close_trackbar()
+        self.ctrl_widget.show()
+
+        self.add_img_list()#메소드 호출
+
+    def click_cancle(self):
+        #rgb 트랙바 숨김 이벤트 해제
+        self.rgb_frame.hide()
+        self.rgb_frame.close_trackbar()
+        self.ctrl_widget.show()
+        self.img = self.prev_img
+        self.display_img_widget(self.img)
+
+    def flip(self):
+        self.img = self.myflip(self.img)
+        self.display_img_widget(self.img)
+        self.click_ok
+        self.add_img_list()#메소드 호출
+
+    def rotate(self):
+        self.img = self.myrotate_90(self.img)
+        self.display_img_widget(self.img)
+        self.click_ok
+        self.add_img_list()#메소드 호출
+        
+    #점묘법 필터 
+    def filter_1(self):
+        self.img = self.pointillism_filter(self.img)
+        self.display_img_widget(self.img)
+        self.add_img_list()#메소드 호출
+
+    def rgbtrack(self):
+        self.rgb_frame.show()
+        self.ctrl_widget.hide()
+        #rgb 평균값 할당.
+        self.rgb = []
+        a,b,c = cv2.split(self.img)
+        self.rgb_2d_array =[c,b,a]
+
+        mean_ch = cv2.mean(self.img)
+        
+        self.rgb.append(int(mean_ch[2]))
+        self.rgb.append(int(mean_ch[1]))
+        self.rgb.append(int(mean_ch[0]))
+        
+        self.rgb_frame.init_track(self.rgb)
+
+    #돌아가기    
+    def redo(self):
+        if self.img_list_cnt > 0:
+            self.img_list_cnt -= 1
+            self.img = self.img_list[self.img_list_cnt]
+            self.display_img_widget(self.img)
+
+#############################################-------------########################################################
+
 ############################################이미지 프로세싱#########################################################
     
     #트랙바 rgb 연산
@@ -270,7 +301,32 @@ class Photoshop(QMainWindow):
     def update_image_rgb(self):
         im = cv2.merge(self.rgb_2d_array)
         self.display_img_widget(im)
-        
+
+    def myflip(self,img): #이미지 뒤집기
+        i_len = len(img)
+        j_len = len(img[0])
+        img_flip = np.zeros_like(img)
+
+        for i in range(i_len):
+            for j in range(j_len):
+                img_flip[i,j]  = img[i,j_len-j-1] #반대 위치의 픽셀 덮어씌운다. 
+        return img_flip
+
+    def myrotate_90(self,img): #이미지 90도 회전 
+        img_rotate_quarter = np.zeros_like(img)
+        i = len(img_rotate_quarter)
+        j = len(img_rotate_quarter[0])
+        #print('shape: {0} i : {1} j : {2} '.format(img_rotate_quarter.shape,i,j))
+        img_rotate_quarter = img_rotate_quarter.reshape(j,i,-1)
+
+        i = len(img_rotate_quarter)
+        j = len(img_rotate_quarter[0])
+        for j in range(len(img[0])):
+            for i in range(len(img)):
+                img_rotate_quarter[j,i] = img[i,j]
+        a = self.myflip(img_rotate_quarter) #좌우반전
+        return a
+
     #이미지 w, h 비율대로 resize 해서 왜곡을 피한다. 
     #코드 사용 예 image = image_resize(image, height = 800)
     def img_resize(image, width = None, height = None, inter = cv2.INTER_AREA):#inter area는 cv2제공하는 양선형 보간법이다. 
@@ -292,10 +348,10 @@ class Photoshop(QMainWindow):
         return resized
     
     #화이트 노이즈 뿌리는 함수
-    def add_noise(img):
+    def add_noise(self,img):
         global weight
         b,g,r = cv2.split(img)#rgb 분리
-        rgb_list = [r,g,b]
+        rgb_list = [b,g,r]
 
         # img의 행 열을 가져온다.
         row , col = rgb_list[0].shape
@@ -322,12 +378,13 @@ class Photoshop(QMainWindow):
     #점묘법 필터 함수 
     def pointillism_filter(self,img):
         img_noise = self.add_noise(img.copy())
-        kernel = np.ones((3*weight+1,3*weight+1), np.uint8) / 9 # 가중치에 따른 마스크 생성
+        kernel = np.ones((3*weight+1,3*weight+1), np.uint8) / ((3*weight+1) * (3*weight+1) ) # 가중치에 따른 마스크 생성
         img_noise = cv2.erode(img_noise,kernel) #erode 연산으로 화이트 노이즈 없엠.
         return img_noise
     
     def get_rgb(self):
         return self.rgb
+        
 #############################################----------------#######################################################
 
 ############################################이미지 위젯 클래스#########################################################
@@ -369,6 +426,7 @@ class ImageWidget(QtWidgets.QWidget):
             self.parent.focus_on()
             self.focus = True
             print('hover')
+
     #todo 들어오면 마우스 감지, 화면에 이미지 띄우는 스레드 실행 하기
 
     def mousePressEvent(self, event):
@@ -386,7 +444,6 @@ class ImageWidget(QtWidgets.QWidget):
         if self.event_flag :
             self.parent.focus_off()
             self.focus = False
-            print('left')
 
     def get_focus(self):
         return self.focus
