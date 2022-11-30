@@ -46,9 +46,13 @@ class CtrlWindow(QFrame):
         btn_rotate_90.clicked.connect(self.parent.rotate)
         self.tab1.layout.addWidget(btn_rotate_90)
 
-        btn_filter_1 = QPushButton('점묘법 필터')
+        btn_filter_1 = QPushButton('점묘법 필터1')
         btn_filter_1.setIcon(QIcon('Icons/rgb.png'))
         btn_filter_1.clicked.connect(self.parent.filter_1)
         self.tab1.layout.addWidget(btn_filter_1)
         
+        btn_filter_1 = QPushButton('점묘법 필터2')
+        btn_filter_1.setIcon(QIcon('Icons/rgb.png'))
+        btn_filter_1.clicked.connect(self.parent.filter_2)
+        self.tab1.layout.addWidget(btn_filter_1)
 

@@ -20,7 +20,7 @@ class Photoshop(QMainWindow):
     prev_img = np.zeros((3,3),np.uint8)#적용 버튼 누르면 이미지 업데이트 todo
 
     img_list = []#undo, redo 함수 구현 todo 
-    img_list_cnt = 0
+    img_list_cnt = -1
 
     widget_cnt  = 0 
     focus_image_frame_flag = False #자식 마우스 이벤트 플래그
@@ -66,7 +66,19 @@ class Photoshop(QMainWindow):
         img_path_btn.setToolTip('이미지를 불러옵니다')
         img_path_btn.clicked.connect(self.save_img) #버튼 이벤트 처리 
         img_path_btn.move(1200, 770) #가로, 세로
-    
+        
+        img_path_btn = QPushButton('redo', self)
+        img_path_btn.resize(img_path_btn.sizeHint())
+        img_path_btn.setToolTip('이미지를 불러옵니다')
+        img_path_btn.clicked.connect(self.redo) #버튼 이벤트 처리 
+        img_path_btn.move(1000, 770) #가로, 세로
+        
+        img_path_btn = QPushButton('undo', self)
+        img_path_btn.resize(img_path_btn.sizeHint())
+        img_path_btn.setToolTip('이미지를 불러옵니다')
+        img_path_btn.clicked.connect(self.undo) #버튼 이벤트 처리 
+        img_path_btn.move(1100, 770) #가로, 세로
+
     def add_widget(self,layout): # 위젯 추가
         #이미지 위젯입니다.
         self.img_widget = ImageWidget(self,event_flag=True)
@@ -205,25 +217,27 @@ class Photoshop(QMainWindow):
 
     def add_img_list(self):#이미지 리스트 업데이트 메소드 
         self.prev_img = self.img 
-
-        if len(self.img_list) <= self.img_list_cnt:
+        
+        if self.img_list_cnt < 0 or len(self.img_list)-1 <= self.img_list_cnt:
+            print('여기실행')
             self.img_list.append(self.prev_img)
         else:
+            print('여기실행2')
             self.img_list[self.img_list_cnt] = self.prev_img
         self.img_list_cnt += 1
-        pass
+        
     def display_img_widget(self,img):
         
         self.img_widget.set_image(img)
 #####################################################버튼 누르는 메소드 연결###################################
     #확인 버튼 클릭
     def click_ok(self):
+        self.add_img_list()#메소드 호출
         #rgb 트랙바 숨김 이벤트 해제
         self.rgb_frame.hide()
         self.rgb_frame.close_trackbar()
         self.ctrl_widget.show()
-
-        self.add_img_list()#메소드 호출
+        
 
     def click_cancle(self):
         #rgb 트랙바 숨김 이벤트 해제
@@ -234,22 +248,31 @@ class Photoshop(QMainWindow):
         self.display_img_widget(self.img)
 
     def flip(self):
+        self.add_img_list()#메소드 호출
         self.img = self.myflip(self.img)
         self.display_img_widget(self.img)
         self.click_ok
-        self.add_img_list()#메소드 호출
+        
 
     def rotate(self):
+        self.add_img_list()#메소드 호출
         self.img = self.myrotate_90(self.img)
         self.display_img_widget(self.img)
         self.click_ok
-        self.add_img_list()#메소드 호출
+        
         
     #점묘법 필터 
     def filter_1(self):
+        self.add_img_list()#메소드 호출
         self.img = self.pointillism_filter(self.img)
         self.display_img_widget(self.img)
+        
+
+    def filter_2(self):
         self.add_img_list()#메소드 호출
+        self.img = self.pointillism_filter2(self.img)
+        self.display_img_widget(self.img)
+        
 
     def rgbtrack(self):
         self.rgb_frame.show()
@@ -268,16 +291,25 @@ class Photoshop(QMainWindow):
         self.rgb_frame.init_track(self.rgb)
 
     #돌아가기    
-    def redo(self):
-        if self.img_list_cnt > 0:
+    def redo(self): 
+        if self.img_list_cnt >= 0:
+            print(self.img_list_cnt)
             self.img_list_cnt -= 1
             self.img = self.img_list[self.img_list_cnt]
             self.display_img_widget(self.img)
+    
+    #재 실행    
+    def undo(self):
+        if self.img_list_cnt < len(self.img_list)-1 : 
+            self.img = self.img_list[self.img_list_cnt]
+            self.img_list_cnt += 1
+            self.display_img_widget(self.img)
+            
 
 #############################################-------------########################################################
 
 ############################################이미지 프로세싱#########################################################
-    
+
     #트랙바 rgb 연산
     def change_img_rgb(self,dif,rgb_flag):
         b,g,r = cv2.split(self.prev_img)
@@ -347,9 +379,10 @@ class Photoshop(QMainWindow):
         resized = cv2.resize(image, dim, interpolation = inter)
         return resized
     
-    #화이트 노이즈 뿌리는 함수
-    def add_noise(self,img):
+    #노이즈 뿌리는 함수
+    def add_noise(self,img, noise_pixel):
         global weight
+        print(noise_pixel)
         b,g,r = cv2.split(img)#rgb 분리
         rgb_list = [b,g,r]
 
@@ -359,7 +392,7 @@ class Photoshop(QMainWindow):
         if weight < 1 : weight =1
         # 노이즈 개수 지정
         number_of_pixels = 10000*weight
-        print(weight)
+        #print(weight)
         for j in range(number_of_pixels):
             #랜덤 좌표에다 노이즈 부여 
             y=random.randint(0, row - 1-weight)
@@ -370,21 +403,28 @@ class Photoshop(QMainWindow):
                 #div_img[y:y+2][x:x+2] = 255 #(255,255,255) 가중치 네모 사이즈 만큼 흰색 노이즈 뿌린다.
                 for a in range(weight):
                     for b in range(weight):
-                        div_img[y+a][x+b] = 255
+                        div_img[y+a][x+b] = noise_pixel
         
         img = cv2.merge(rgb_list) #rgb 합침
         return img
     
     #점묘법 필터 함수 
     def pointillism_filter(self,img):
-        img_noise = self.add_noise(img.copy())
+        img_noise = self.add_noise(img.copy(),255)
         kernel = np.ones((3*weight+1,3*weight+1), np.uint8) / ((3*weight+1) * (3*weight+1) ) # 가중치에 따른 마스크 생성
         img_noise = cv2.erode(img_noise,kernel) #erode 연산으로 화이트 노이즈 없엠.
         return img_noise
-    
+
+    #밝은 점묘법 필터 함수
+    def pointillism_filter2(self,img):
+        img_noise = self.add_noise(img.copy(),0)
+        kernel = np.ones((3*weight+1,3*weight+1), np.uint8) / 9 # 가중치에 따른 마스크 생성
+        img_noise = cv2.dilate(img_noise,kernel) #dilate 연산으로 객체 팽창.
+        return img_noise
+
     def get_rgb(self):
         return self.rgb
-        
+
 #############################################----------------#######################################################
 
 ############################################이미지 위젯 클래스#########################################################
@@ -447,8 +487,6 @@ class ImageWidget(QtWidgets.QWidget):
 
     def get_focus(self):
         return self.focus
-
-
 ############################################--------------#########################################################
 
 if __name__ == '__main__': #실행이 main함수인 경우
