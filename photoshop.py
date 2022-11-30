@@ -12,24 +12,26 @@ from CtrlWindow import CtrlWindow
 
 class Photoshop(QMainWindow):
     #전역변수 설정
-    img_original  = np.zeros((3,3),np.uint8)
-    img  = np.zeros((3,3),np.uint8)
-    img_list = []
+    img_original  = np.zeros((3,3),np.uint8)#원본. 업데이트 안 함 
+    img  = np.zeros((3,3),np.uint8)#현재 화면에 보여주는 이미지  
+    prev_img = np.zeros((3,3),np.uint8)#적용 버튼 누르면 이미지 업데이트 todo
+
+    img_list = []#undo, redo 함수 구현 todo 
     widget_cnt = 0
     focus_image_frame_flag = False #자식 마우스 이벤트 플래그
-    
-    #이미지 값 조정
+
+    #rgb는 각 r,g,b 의 평균 값을 계산한거 !!!!
     rgb = [128, 128, 128]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)      
         self.setMouseTracking(True)
         self.initUI()
-        
+
     def initUI(self): 
         self.setWindowIcon(QtGui.QIcon('./img/cat.jpg'))#이미지
         self.setStyleSheet('background : lightgray;')
-        self.setGeometry(250, 130, 1300, 850)    
+        self.setGeometry(250, 130, 1400, 850)    
         self.add_btn() #버튼 추가
         self.add_menubar()#메뉴바 추가
         self.setWindowTitle('PyQt5 포토샵 구현')#제목 설정
@@ -61,13 +63,14 @@ class Photoshop(QMainWindow):
         img_path_btn.move(1200, 770) #가로, 세로
     
     def add_widget(self,layout): # 위젯 추가
+        #이미지 위젯입니다.
         self.img_widget = ImageWidget(self,event_flag=True)
         #self.layout = QtWidgets.QFormLayout(self.img_widget)
-        self.img_widget.setGeometry(140,130,600,470)
+        self.img_widget.setGeometry(140,130,700,700)
         self.img_widget.setStyleSheet('border : 2px solid gray;')
 
         self.ctrl_widget = CtrlWindow(self)
-        self.ctrl_widget.setGeometry(820,130,250,470)
+        self.ctrl_widget.setGeometry(900,130,250,470)
         
         layout.addWidget(self.img_widget)
         layout.addWidget(self.ctrl_widget)
@@ -105,7 +108,8 @@ class Photoshop(QMainWindow):
         #opencv 는 파일 입출력 할때 아스키 문자만 허용한다. 절대 경로사용 불가
         self.img_original = cv2.imdecode(np.fromfile(file_name[0], dtype=np.uint8),cv2.IMREAD_UNCHANGED)
         self.img = self.img_original.copy()
-        
+        self.prev_img = self.img_original.copy()
+
         #rgb 평균값 할당.
         self.rgb = []
         a,b,c = cv2.split(self.img_original)
@@ -117,8 +121,10 @@ class Photoshop(QMainWindow):
         self.rgb.append(int(mean_ch[1]))
         self.rgb.append(int(mean_ch[0]))
         
-        self.update_img(self.img) #이미지 업데이트
+        self.display_img_widget(self.img) #이미지 업데이트
         self.ctrl_widget.update_rgb_label(rb = self.rgb)
+
+        self.ctrl_widget.init_track(self.rgb)
 
         if self.widget_cnt > 0:#도커 창 닫기
             dock.close()
@@ -159,45 +165,65 @@ class Photoshop(QMainWindow):
     def mouseReleaseEvent(self, event):
         pass
 
-
     def focus_on(self):#이미지 프레임 포커싱 인  
         print('포커싱 인')
         self.focus_image_frame_flag = True
     def focus_off(self):#이미지 프레임 포커싱 아웃
         self.focus_image_frame_flag = False
-        self.statusBar().clearMessage() #포커싱 아웃될때 메시지 제거 
+        self.statusBar().clearMessage() #포커싱 아웃될때 메시지 제거
 
     def savefile(self): #파일 저장하기 
-        print('save file')     
+        print('save file')
 
     def update_statusBar(self,event):
         tracking_location  = "마우스 좌표 (x,y) = ({0}, {1}), global x,y = {2},{3}".format(event.x(),event.y(),event.globalX(),event.globalY())
         self.statusBar().showMessage(tracking_location)
 
-    
+    def display_img(self):#이미지를 화면에 띄웁니다 todo
 
-############################################이미지 프로세싱#########################################################
-    def update_img(self,img):
+        pass
+
+    #확인 버튼 클릭
+    def click_ok(self):
+        #이미지 업데이트
+        self.prev_img = self.img 
+        pass
+    #rgb는 각 rgb의 평균 값임 !
+    def get_rgb(self):
+        return self.rgb
+    def get_r(self):
+        return self.rgb[0]
+    def get_g(self):
+        return self.rgb[1]
+    def get_b(self):
+        return self.rgb[2]
+
+    def display_img_widget(self,img):
         self.img_widget.set_image(img)
+############################################이미지 프로세싱#########################################################
+    
+    #트랙바 rgb 연산
+    def change_img_rgb(self,dif,rgb_flag):
+        b,g,r = cv2.split(self.img)
 
-    def update_r(self,dif):
-        self.rgb[0] = cv2.add(self.rgb[0] , dif)#연산을 한다. 
-        self.rgb_2d_array[0] = cv2.add(self.rgb_2d_array[0],dif)
-        self.update_image_rgb()
+        if rgb_flag == 2:#Red
+            r = cv2.add(r, dif)#연산을 한다. 
+        elif rgb_flag ==1:#Green
+            g = cv2.add(g , dif)
+        elif rgb_flag ==0:#Blue
+            b = cv2.add(b, dif)
 
-    def update_g(self,dif):
-        self.rgb[1] = cv2.add(self.rgb[1] , dif)
-        self.rgb_2d_array[1] = cv2.add(self.rgb_2d_array[1],dif)
-        self.update_image_rgb()
-
-    def update_b(self,dif):
-        self.rgb[2] = cv2.add(self.rgb[2] , dif)
-        self.rgb_2d_array[2] = cv2.add(self.rgb_2d_array[2],dif)
-        self.update_image_rgb()
+        self.display_img_widget(cv2.merge((r,g,b)))#화면에 띄웁니다.
+        
+    def update_rgb(self, rgb):
+        self.rgb = rgb
+    
+    def update_rgb_2d_array(self):
+        pass
 
     def update_image_rgb(self):
         im = cv2.merge(self.rgb_2d_array)
-        self.update_img(im)
+        self.display_img_widget(im)
         
     #이미지 w, h 비율대로 resize 해서 왜곡을 피한다. 
     #코드 사용 예 image = image_resize(image, height = 800)
@@ -228,7 +254,7 @@ class Photoshop(QMainWindow):
         # img의 행 열을 가져온다.
         row , col = rgb_list[0].shape
         weight = int(math.sqrt(row * col // 40000)) #크기에 따른 노이즈 크기 조절
-        if weight < 1 : weight =1 
+        if weight < 1 : weight =1
         # 노이즈 개수 지정
         number_of_pixels = 10000*weight
         print(weight)
@@ -298,6 +324,7 @@ class ImageWidget(QtWidgets.QWidget):
             self.focus = True
             print('hover')
     #todo 들어오면 마우스 감지, 화면에 이미지 띄우는 스레드 실행 하기
+
     def mousePressEvent(self, event):
         pass
 
@@ -317,7 +344,6 @@ class ImageWidget(QtWidgets.QWidget):
 
     def get_focus(self):
         return self.focus
-
 
 
 ############################################--------------#########################################################
