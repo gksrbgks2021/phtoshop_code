@@ -53,7 +53,6 @@ class CtrlWindow(QFrame):
         self.r_level.setMaximum(255)
         self.r_level.setValue(127)
         self.tab1.layout.addWidget(self.r_level)
-        
 
         self.g_level_label = QLabel("초 록 : 127")
         self.tab1.layout.addWidget(self.g_level_label)
@@ -65,7 +64,6 @@ class CtrlWindow(QFrame):
         self.g_level.setValue(127)
         self.tab1.layout.addWidget(self.g_level)
         
-
         self.b_level_label = QLabel("파 랑: 127")
         self.tab1.layout.addWidget(self.b_level_label)
         self.b_level = QSlider(Qt.Horizontal)
@@ -76,15 +74,15 @@ class CtrlWindow(QFrame):
         self.b_level.setValue(127)
         self.tab1.layout.addWidget(self.b_level)
 
+        btn_flip = QPushButton('좌우반전')
+        btn_flip.setIcon(QIcon('Icons/threshold.png'))
+        btn_flip.clicked.connect(self.parent.flip)
+        self.tab1.layout.addWidget(btn_flip)
+
         btn_rotate_90 = QPushButton('90도 회전')
         btn_rotate_90.setIcon(QIcon('Icons/rgb.png'))
-        #btn14.clicked.connect(self.parent.handler.handle_rgb)
+        btn_rotate_90.clicked.connect(self.parent.rotate)
         self.tab1.layout.addWidget(btn_rotate_90)
-
-        btn7 = QPushButton('Threshold')
-        btn7.setIcon(QIcon('Icons/threshold.png'))
-       # btn7.clicked.connect(self.parent.handler.handle_threshold)
-        self.tab1.layout.addWidget(btn7)
 
 ####################################버튼 클릭 트리거 메소드###############################################
 
@@ -119,7 +117,6 @@ class CtrlWindow(QFrame):
         
         self.parent.change_img_rgb(dif,1)
         self.g_level_label.setText("초 록 : " + str(self.g_level.value()))
-        
 
     def change_b(self):
         dif = self.b_level.value() - self.rgb_mean[2]

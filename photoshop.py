@@ -17,7 +17,9 @@ class Photoshop(QMainWindow):
     prev_img = np.zeros((3,3),np.uint8)#적용 버튼 누르면 이미지 업데이트 todo
 
     img_list = []#undo, redo 함수 구현 todo 
-    widget_cnt = 0
+    img_list_cnt = 0
+
+    widget_cnt  = 0 
     focus_image_frame_flag = False #자식 마우스 이벤트 플래그
 
     #rgb는 각 r,g,b 의 평균 값을 계산한거 !!!!
@@ -74,6 +76,40 @@ class Photoshop(QMainWindow):
         
         layout.addWidget(self.img_widget)
         layout.addWidget(self.ctrl_widget)
+    
+    def myflip(self,img): #이미지 뒤집기
+        i_len = len(img)
+        j_len = len(img[0])
+        img_flip = np.zeros_like(img)
+
+        for i in range(i_len):
+            for j in range(j_len):
+                img_flip[i,j]  = img[i,j_len-j-1] #반대 위치의 픽셀 덮어씌운다. 
+        return img_flip
+
+    def myrotate_90(self,img): #이미지 90도 회전 
+        img_rotate_quarter = np.zeros_like(img)
+        i = len(img_rotate_quarter)
+        j = len(img_rotate_quarter[0])
+        #print('shape: {0} i : {1} j : {2} '.format(img_rotate_quarter.shape,i,j))
+        img_rotate_quarter = img_rotate_quarter.reshape(j,i,-1)
+
+        i = len(img_rotate_quarter)
+        j = len(img_rotate_quarter[0])
+        for j in range(len(img[0])):
+            for i in range(len(img)):
+                img_rotate_quarter[j,i] = img[i,j]
+        a = self.myflip(img_rotate_quarter) #좌우반전
+        return a
+
+    def flip(self):
+        
+
+        pass
+
+    def rotate(self):
+
+        pass 
 
     #메뉴바 추가
     def add_menubar(self):
@@ -179,15 +215,24 @@ class Photoshop(QMainWindow):
         tracking_location  = "마우스 좌표 (x,y) = ({0}, {1}), global x,y = {2},{3}".format(event.x(),event.y(),event.globalX(),event.globalY())
         self.statusBar().showMessage(tracking_location)
 
-    def display_img(self):#이미지를 화면에 띄웁니다 todo
-
-        pass
-
     #확인 버튼 클릭
     def click_ok(self):
         #이미지 업데이트
         self.prev_img = self.img 
-        pass
+        self.img_list[self.img_list_cnt] = self.prev_img
+        self.img_list_cnt += 1
+
+    def click_cancle(self):
+        self.img = self.prev_img
+        self.display_img_widget(self.img)
+        
+    #돌아가기
+    def redo(self):
+        if self.img_list_cnt > 0:
+            self.img_list_cnt -= 1
+            self.img = self.img_list[self.img_list_cnt]
+            self.display_img_widget(self.img)
+        
     #rgb는 각 rgb의 평균 값임 !
     def get_rgb(self):
         return self.rgb
@@ -204,7 +249,7 @@ class Photoshop(QMainWindow):
     
     #트랙바 rgb 연산
     def change_img_rgb(self,dif,rgb_flag):
-        b,g,r = cv2.split(self.img)
+        b,g,r = cv2.split(self.prev_img)
 
         if rgb_flag == 2:#Red
             r = cv2.add(r, dif)#연산을 한다. 
@@ -212,8 +257,9 @@ class Photoshop(QMainWindow):
             g = cv2.add(g , dif)
         elif rgb_flag ==0:#Blue
             b = cv2.add(b, dif)
+        self.img = cv2.merge((r,g,b))
 
-        self.display_img_widget(cv2.merge((r,g,b)))#화면에 띄웁니다.
+        self.display_img_widget(self.img)#화면에 띄웁니다.
         
     def update_rgb(self, rgb):
         self.rgb = rgb
