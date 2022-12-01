@@ -19,7 +19,7 @@ class RgbFrame(QFrame):
     def init_ui(self):#ui 초기화 ~ 
         self.rootVbox = QVBoxLayout()
         self.tab1 = QWidget()
-        self.tab1.setObjectName('yon')
+        self.tab1.setObjectName('rgb')
         self.tab1.setStyleSheet('QWidget#parent{border : 2px solid gray;}')#부모 에게만 경계선 지정하기.
         
         #탭 추가

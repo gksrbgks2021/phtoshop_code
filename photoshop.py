@@ -11,6 +11,7 @@ import re
 
 from CtrlWindow import CtrlWindow 
 from RgbFrame import RgbFrame
+from MouseObserver import MouseObserver
 
 class Photoshop(QMainWindow):
     
@@ -29,7 +30,8 @@ class Photoshop(QMainWindow):
     rgb = [128, 128, 128]
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)      
+        super().__init__(*args, **kwargs)     
+        
         self.setMouseTracking(True)
         self.initUI()
 
@@ -80,8 +82,9 @@ class Photoshop(QMainWindow):
         img_path_btn.move(1100, 770) #가로, 세로
 
     def add_widget(self,layout): # 위젯 추가
-        #이미지 위젯입니다.
+        #이미지 라벨 추가 .
         self.img_widget = ImageWidget(self,event_flag=True)
+
         #self.layout = QtWidgets.QFormLayout(self.img_widget)
         self.img_widget.setGeometry(140,130,700,700)#이미지 최대 크기 700 700 
         self.img_widget.setStyleSheet('border : 2px solid gray;')
@@ -93,6 +96,7 @@ class Photoshop(QMainWindow):
         self.rgb_frame.setGeometry(950,130,250,270)
         self.rgb_frame.hide()
         
+
         layout.addWidget(self.img_widget)
         layout.addWidget(self.ctrl_widget)
         layout.addWidget(self.rgb_frame)
@@ -181,15 +185,6 @@ class Photoshop(QMainWindow):
         dock.setGeometry(100, 100, 200, 200)
         dock.show()
 
-    def mousePressEvent(self, event):
-        pass
-
-    def mouseMoveEvent(self, event):
-        pass
-
-    def mouseReleaseEvent(self, event):
-        pass
-
     def focus_on(self):#이미지 프레임 포커싱 인  
         print('포커싱 인')
         self.focus_image_frame_flag = True
@@ -201,8 +196,8 @@ class Photoshop(QMainWindow):
     def savefile(self): #파일 저장하기 
         print('save file')
 
-    def update_statusBar(self,event):
-        tracking_location  = "마우스 좌표 (x,y) = ({0}, {1}), global x,y = {2},{3}".format(event.x(),event.y(),event.globalX(),event.globalY())
+    def update_statusBar(self,a,b):
+        tracking_location  = "마우스 좌표 (x,y) = ({0}, {1}), global x,y = {2},{3}".format(a.x(),a.y(),b.x(),b.y())
         self.statusBar().showMessage(tracking_location)
         
     #rgb는 각 rgb의 평균 값임 !
@@ -219,16 +214,26 @@ class Photoshop(QMainWindow):
         self.prev_img = self.img 
         
         if self.img_list_cnt < 0 or len(self.img_list)-1 <= self.img_list_cnt:
-            print('여기실행')
+            
             self.img_list.append(self.prev_img)
         else:
-            print('여기실행2')
             self.img_list[self.img_list_cnt] = self.prev_img
         self.img_list_cnt += 1
         
     def display_img_widget(self,img):
-        
         self.img_widget.set_image(img)
+
+    ######################################## 시그널 연결 ########################3
+    def handle_pressed(self, window_pos, global_pos):
+        print('시그널 프레스')
+        
+    def handle_relase(self, window_pos, global_pos):
+        print('시그널 릴리즈')
+
+    def handle_moved(self, w_p, g_p):
+        self.update_statusBar(w_p,g_p)
+
+    #####################################-----------############################3
 #####################################################버튼 누르는 메소드 연결###################################
     #확인 버튼 클릭
     def click_ok(self):
@@ -237,7 +242,6 @@ class Photoshop(QMainWindow):
         self.rgb_frame.hide()
         self.rgb_frame.close_trackbar()
         self.ctrl_widget.show()
-        
 
     def click_cancle(self):
         #rgb 트랙바 숨김 이벤트 해제
@@ -272,7 +276,6 @@ class Photoshop(QMainWindow):
         self.add_img_list()#메소드 호출
         self.img = self.pointillism_filter2(self.img)
         self.display_img_widget(self.img)
-        
 
     def rgbtrack(self):
         self.rgb_frame.show()
@@ -434,7 +437,8 @@ class ImageWidget(QtWidgets.QWidget):
     
     def __init__(self, parent=None,event_flag = False):
         super(ImageWidget, self).__init__(parent)
-        self.setMouseTracking(True)
+        
+       # self.setMouseTracking(True)
         self.image_frame = QLabel(self) #이미지 프레임 생성
         self.image = np.zeros((3,3),np.uint8)
         self.image_frame.setAlignment(QtCore.Qt.AlignCenter)
@@ -446,15 +450,10 @@ class ImageWidget(QtWidgets.QWidget):
             self.set_image(parent.img_original)
         self.event_flag = event_flag #이벤트 플래그 설정
         self.parent = parent
-
+        
     def set_image(self,img): #이미지 변경
         self.image = img
         self.show_image()
-        
-    def d_mouseMoveEvent(self, event):#마우스 움직임 이벤트  
-        if self.event_flag:
-            print('자식')
-            self.parent.update_statusBar(event)
 
     @pyqtSlot()
     def show_image(self): # Qimage 객체가 필요하다. 
@@ -465,21 +464,7 @@ class ImageWidget(QtWidgets.QWidget):
         if self.event_flag :
             self.parent.focus_on()
             self.focus = True
-            print('hover')
-
-    #todo 들어오면 마우스 감지, 화면에 이미지 띄우는 스레드 실행 하기
-
-    def mousePressEvent(self, event):
-        pass
-
-    def mouseReleaseEvent(self, event):
-        pass
-
-    def mouseMoveEvent(self, event):#마우스 움직임 이벤트 
-        print('마우스 움직임')
-       #self.img_widget.my_onMouse(event)
-        self.parent.update_statusBar(event)
-
+        
     def leaveEvent(self, event): #마우스 포커싱 나갈때
         if self.event_flag :
             self.parent.focus_off()
@@ -492,4 +477,9 @@ class ImageWidget(QtWidgets.QWidget):
 if __name__ == '__main__': #실행이 main함수인 경우
     app = QApplication(sys.argv)
     ex = Photoshop()
+    mouse_observer = MouseObserver(ex.windowHandle())
+    mouse_observer.released.connect(ex.handle_relase)#시그널을 연결한다
+    mouse_observer.pressed.connect(ex.handle_pressed)#시그널을 연결한다
+    mouse_observer.moved.connect(ex.handle_moved)#시그널을 연결한다
+    
     sys.exit(app.exec_())

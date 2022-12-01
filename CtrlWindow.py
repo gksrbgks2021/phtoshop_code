@@ -56,3 +56,8 @@ class CtrlWindow(QFrame):
         btn_filter_1.clicked.connect(self.parent.filter_2)
         self.tab1.layout.addWidget(btn_filter_1)
 
+        btn_filter_1 = QPushButton('영역 선 택')
+        btn_filter_1.setIcon(QIcon('Icons/rgb.png'))
+        btn_filter_1.clicked.connect(self.parent.filter_2)
+        self.tab1.layout.addWidget(btn_filter_1)
+
