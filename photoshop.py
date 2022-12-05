@@ -65,30 +65,30 @@ class Photoshop(QMainWindow):
 
         img_path_btn = QPushButton('저 장', self)
         img_path_btn.resize(img_path_btn.sizeHint())
-        img_path_btn.setToolTip('이미지를 불러옵니다')
+        img_path_btn.setToolTip('이미지를 저장합니다.')
         img_path_btn.clicked.connect(self.save_img) #버튼 이벤트 처리 
         img_path_btn.move(1200, 770) #가로, 세로
         
         img_path_btn = QPushButton('redo', self)
         img_path_btn.resize(img_path_btn.sizeHint())
-        img_path_btn.setToolTip('이미지를 불러옵니다')
+        img_path_btn.setToolTip('실행 취소')
         img_path_btn.clicked.connect(self.redo) #버튼 이벤트 처리 
         img_path_btn.move(1000, 770) #가로, 세로
         
         img_path_btn = QPushButton('undo', self)
         img_path_btn.resize(img_path_btn.sizeHint())
-        img_path_btn.setToolTip('이미지를 불러옵니다')
+        img_path_btn.setToolTip('재 실행')
         img_path_btn.clicked.connect(self.undo) #버튼 이벤트 처리 
         img_path_btn.move(1100, 770) #가로, 세로
 
     def add_widget(self,layout): # 위젯 추가
         #이미지 라벨 추가 .
         self.img_widget = ImageWidget(self,event_flag=True)
-
+        
         #self.layout = QtWidgets.QFormLayout(self.img_widget)
-        self.img_widget.setGeometry(140,130,700,700)#이미지 최대 크기 700 700 
+        self.img_widget.setGeometry(140,130,700,700)#이미지 최대 크기 700 700
+        self.img_widget.move(100,100)
         self.img_widget.setStyleSheet('border : 2px solid gray;')
-
         self.ctrl_widget = CtrlWindow(self)
         self.ctrl_widget.setGeometry(900,130,250,470)
         
@@ -103,7 +103,7 @@ class Photoshop(QMainWindow):
         
     #메뉴바 추가
     def add_menubar(self):
-        exitAction = QAction('&Exit', self)        
+        exitAction = QAction('&Exit', self)
         exitAction.setShortcut('Esc')#강제종료 키 esc
         exitAction.setStatusTip('Exit application')
         exitAction.triggered.connect(qApp.quit)
@@ -148,6 +148,9 @@ class Photoshop(QMainWindow):
         self.rgb.append(int(mean_ch[0]))
         
         self.display_img_widget(self.img) #이미지 업데이트
+        print('이미지 위젯 좌표')
+        print(self.img_widget.get_x(), self.img_widget.get_y())
+
         #self.ctrl_widget.update_rgb_label(rb = self.rgb)
         #self.ctrl_widget.init_track(self.rgb)
 
@@ -186,7 +189,6 @@ class Photoshop(QMainWindow):
         dock.show()
 
     def focus_on(self):#이미지 프레임 포커싱 인  
-        print('포커싱 인')
         self.focus_image_frame_flag = True
 
     def focus_off(self):#이미지 프레임 포커싱 아웃
@@ -231,6 +233,7 @@ class Photoshop(QMainWindow):
         print('시그널 릴리즈')
 
     def handle_moved(self, w_p, g_p):
+        self.mouse_display(w_p)
         self.update_statusBar(w_p,g_p)
 
     #####################################-----------############################3
@@ -362,9 +365,9 @@ class Photoshop(QMainWindow):
         a = self.myflip(img_rotate_quarter) #좌우반전
         return a
 
-    #이미지 w, h 비율대로 resize 해서 왜곡을 피한다. 
+    #이미지 w, h 비율대로 resize 해서 왜곡을 피한다.
     #코드 사용 예 image = image_resize(image, height = 800)
-    def img_resize(image, width = None, height = None, inter = cv2.INTER_AREA):#inter area는 cv2제공하는 양선형 보간법이다. 
+    def img_resize(image, width = None, height = None, inter = cv2.INTER_AREA):#inter area는 cv2제공하는 양선형 보간법이다.
         if width is None and height is None:#widght, height 값이 없으면 연산 안 함.
             return image
         # 이미지 widght, height
@@ -378,10 +381,10 @@ class Photoshop(QMainWindow):
             r = width / float(w) # width 비율을 구하고 디멘션 생성
             dim = (width, int(h * r))
 
-        #크기 재조정. 
+        #크기 재조정.
         resized = cv2.resize(image, dim, interpolation = inter)
         return resized
-    
+
     #노이즈 뿌리는 함수
     def add_noise(self,img, noise_pixel):
         global weight
@@ -397,7 +400,7 @@ class Photoshop(QMainWindow):
         number_of_pixels = 10000*weight
         #print(weight)
         for j in range(number_of_pixels):
-            #랜덤 좌표에다 노이즈 부여 
+            #랜덤 좌표에다 노이즈 부여
             y=random.randint(0, row - 1-weight)
             x=random.randint(0, col - 1-weight)
             
@@ -420,7 +423,7 @@ class Photoshop(QMainWindow):
 
     #밝은 점묘법 필터 함수
     def pointillism_filter2(self,img):
-        img_noise = self.add_noise(img.copy(),0)
+        img_noise = self.add_noise(img.copy(),0)# (0,0,0) 노이즈를 뿌린다.
         kernel = np.ones((3*weight+1,3*weight+1), np.uint8) / 9 # 가중치에 따른 마스크 생성
         img_noise = cv2.dilate(img_noise,kernel) #dilate 연산으로 객체 팽창.
         return img_noise
@@ -428,30 +431,60 @@ class Photoshop(QMainWindow):
     def get_rgb(self):
         return self.rgb
 
-#############################################----------------#######################################################
+    #화면에 마우스 위치 보여주는 UI
+    def mouse_display(self,p,r=25):
+        if self.img_original.sum() > 0 and self.focus_image_frame_flag :#이미지 위에 마우스 있을때만. 
+            #print(self.img_widget.x,self.img_widget.y)
+            img = self.img.copy() 
+            i , j = img.shape[:2] #이미지 상의 i, j 
+
+            #마우스 (i,j) 좌표를 이미지 상의 좌표로 가져온다. 
+            m_j,m_i = p.x()-100,p.y()-100
+
+            img_center_i,img_center_j = i//2 , j//2  #이미지 중심 좌표 
+
+            n = r // 2 + 1
+            # (100 100 700 700 ) geom           
+            #   (100,100)  start    (790,142)
+            #
+            #   (151,816)           (827,816)
+            #roi = img[y-n:y+n, x-n:x+n]
+            #print(roi.sum())
+            #if roi.sum() == 0 : return
+
+            img_back = np.full_like(img,255) 
+
+            cv2.circle(img_back, (m_j,m_i),r,(150,150,150),-1)
+            img = cv2.bitwise_and(img_back, img)          #마우스 움직임에 따라 원 생성 
+            self.display_img_widget(img)
+                
+
+#############################################----------------#########################################################
 
 ############################################이미지 위젯 클래스#########################################################
 class ImageWidget(QtWidgets.QWidget):
     event_flag = False # 콜백 함수 실행 여부 플래그
     focus = False # 마우스 포커싱 실행 여부 
-    
     def __init__(self, parent=None,event_flag = False):
         super(ImageWidget, self).__init__(parent)
         
        # self.setMouseTracking(True)
         self.image_frame = QLabel(self) #이미지 프레임 생성
         self.image = np.zeros((3,3),np.uint8)
-        self.image_frame.setAlignment(QtCore.Qt.AlignCenter)
+        self.image_frame.enterEvent = self.enterEvent_2
+        self.image_frame.leaveEvent = self.leaveEvent_2
 
-        self.layout = QVBoxLayout()
-        self.layout.addWidget(self.image_frame)
-        self.setLayout(self.layout)
+        #self.layout = QVBoxLayout()
+        #self.layout.addWidget(self.image_frame)
+        #self.setLayout(self.layout)
         if parent is not None:
             self.set_image(parent.img_original)
         self.event_flag = event_flag #이벤트 플래그 설정
         self.parent = parent
         
     def set_image(self,img): #이미지 변경
+        h,w = img.shape[:2]
+        self.image_frame.setGeometry(0, 0, w,h)
         self.image = img
         self.show_image()
 
@@ -459,27 +492,33 @@ class ImageWidget(QtWidgets.QWidget):
     def show_image(self): # Qimage 객체가 필요하다. 
         self.image = QtGui.QImage(self.image.data, self.image.shape[1], self.image.shape[0], QtGui.QImage.Format_RGB888).rgbSwapped()
         self.image_frame.setPixmap(QtGui.QPixmap.fromImage(self.image))
-    
-    def enterEvent(self, event): #들어온다.
+
+    def enterEvent_2(self, event): #들어온다.
         if self.event_flag :
             self.parent.focus_on()
             self.focus = True
         
-    def leaveEvent(self, event): #마우스 포커싱 나갈때
+    def leaveEvent_2(self, event): #마우스 포커싱 나갈때
         if self.event_flag :
             self.parent.focus_off()
             self.focus = False
 
     def get_focus(self):
         return self.focus
+
+    def get_x(self):
+        return self.image_frame.x()
+    def get_y(self):
+        return self.image_frame.y()
+
 ############################################--------------#########################################################
 
 if __name__ == '__main__': #실행이 main함수인 경우
     app = QApplication(sys.argv)
     ex = Photoshop()
-    mouse_observer = MouseObserver(ex.windowHandle())
-    mouse_observer.released.connect(ex.handle_relase)#시그널을 연결한다
-    mouse_observer.pressed.connect(ex.handle_pressed)#시그널을 연결한다
-    mouse_observer.moved.connect(ex.handle_moved)#시그널을 연결한다
+    mouse_observer = MouseObserver(ex.windowHandle())#마우스 이벤트 시그널 생성하는 클래스.
+    mouse_observer.released.connect(ex.handle_relase)
+    mouse_observer.pressed.connect(ex.handle_pressed)
+    mouse_observer.moved.connect(ex.handle_moved)
     
     sys.exit(app.exec_())

@@ -56,14 +56,15 @@ class CtrlWindow(QFrame):
         btn_filter_2.clicked.connect(self.parent.filter_2)
         self.tab1.layout.addWidget(btn_filter_2)
 
-        btn_filter_3 = QPushButton('반전 필터')
+        btn_filter_3 = QPushButton('반전 필터')#todo
         btn_filter_3.setIcon(QIcon('Icons/rgb.png'))
         btn_filter_3.clicked.connect(self.parent.filter_2)
         self.tab1.layout.addWidget(btn_filter_3)
 
-        btn_clip = QPushButton('잘라내기')
+        btn_clip = QPushButton('잘라내기')#todo
         btn_clip.clicked.connect(self.parent.filter_2)
         self.tab1.layout.addWidget(btn_clip)
 
-        
-
+        btn_resize = QPushButton('화면 맞추기')#todo
+        btn_resize.clicked.connect(self.parent.filter_2)
+        self.tab1.layout.addWidget(btn_resize)

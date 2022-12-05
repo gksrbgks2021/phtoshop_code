@@ -69,7 +69,7 @@ class RgbFrame(QFrame):
         self.tab1.layout.addWidget(self.b_level)
 
         btn_ok = QPushButton('')
-        btn_ok.setIcon(QIcon('./img/ok.jpg'))
+        btn_ok.setIcon(QIcon('./img/ok.png'))
         btn_ok.setIconSize(QSize(30,30))
         btn_ok.clicked.connect(self.parent.click_ok)
 
@@ -114,7 +114,6 @@ class RgbFrame(QFrame):
 
     def change_g(self):
         self.g_level_label.setText("초 록 : " + str(self.g_level.value()))
-
         if self.flag : return #트랙바가 꺼져있으면 작동 x, 그래야 다음 트랙바 불러올때 작동안함. 
         dif = self.g_level.value() - self.rgb_mean[1]
         self.parent.change_img_rgb(dif,1)
