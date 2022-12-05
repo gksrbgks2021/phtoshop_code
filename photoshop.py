@@ -11,6 +11,7 @@ import re
 
 from CtrlWindow import CtrlWindow 
 from RgbFrame import RgbFrame
+from SelectFrame import SelectFrame
 from MouseObserver import MouseObserver
 from SelState import SelState as ST
 
@@ -28,7 +29,8 @@ class Photoshop(QMainWindow):
     focus_image_frame_flag = False #자식 마우스 이벤트 플래그
 
     select_flag = ST.NONE # 초기 상태.
-
+    mouse_flag =ST.NONE # 마우스 누르지 않는 상태
+    start_x, start_y = 0,0
     #rgb는 각 r,g,b 의 평균 값을 계산한거 !!!!
     rgb = [128, 128, 128]
 
@@ -89,8 +91,7 @@ class Photoshop(QMainWindow):
         self.img_widget = ImageWidget(self,event_flag=True)
         
         #self.layout = QtWidgets.QFormLayout(self.img_widget)
-        self.img_widget.setGeometry(140,130,700,700)#이미지 최대 크기 700 700
-        self.img_widget.move(100,100)
+        self.img_widget.setGeometry(100,100,700,700)#이미지 최대 크기 700 700
         self.ctrl_widget = CtrlWindow(self)
         self.ctrl_widget.setGeometry(900,130,250,470)
         
@@ -98,10 +99,14 @@ class Photoshop(QMainWindow):
         self.rgb_frame.setGeometry(950,130,250,270)
         self.rgb_frame.hide()
         
+        self.select_frame = SelectFrame(self)
+        self.select_frame.setGeometry(950,130,250,270)
+        self.select_frame.hide()
 
         layout.addWidget(self.img_widget)
         layout.addWidget(self.ctrl_widget)
         layout.addWidget(self.rgb_frame)
+        layout.addWidget(self.select_frame)
         
     #메뉴바 추가
     def add_menubar(self):
@@ -143,7 +148,8 @@ class Photoshop(QMainWindow):
         self.img_original = cv2.imdecode(np.fromfile(file_name[0], dtype=np.uint8),cv2.IMREAD_UNCHANGED)
         self.img = self.img_original.copy()
         self.prev_img = self.img_original.copy()
-
+        self.img_list = []
+        self.img_list_cnt = -1
         #rgb 평균값 할당.
         self.rgb = []
         a,b,c = cv2.split(self.img_original)
@@ -233,16 +239,26 @@ class Photoshop(QMainWindow):
         self.img_widget.set_image(img)
 
     ######################################## 시그널 연결 ########################3
-    def handle_pressed(self, window_pos, global_pos):
-        #print('시그널 프레스')
-        pass
+    def handle_pressed(self, window_pos, global_pos): #마우스 좌표 저장 후 상태에 따라 연산실행. 
+        self.mouse_flag = ST.LBUTTON_DOWN
+        self.start_x = window_pos.x()
+        self.start_y = window_pos.y()
+
     def handle_relase(self, window_pos, global_pos):
-        #print('시그널 릴리즈')
-        pass
+        x,y = window_pos.x(),window_pos.y()
+        self.mouse_flag = ST.LBUTTON_UP
+        self.roi_processing([self.start_x,self.start_y,x,y])
+        self.select_Pos = [] #리스트 비웁니다.
+        self.mouse_flag = ST.NONE
 
     def handle_moved(self, w_p, g_p):
         self.mouse_display(w_p)
         self.update_statusBar(w_p,g_p)
+        if self.mouse_flag == ST.CUT: return #아무것도 안한다
+        
+        if self.mouse_flag == ST.LBUTTON_DOWN:#마우스 누른 상태에만. (블러닝, 샤프닝) 
+            self.roi_processing(w_p)
+        
 
     #####################################-----------############################3
 #####################################################버튼 누르는 메소드 연결###################################
@@ -251,29 +267,57 @@ class Photoshop(QMainWindow):
         self.add_img_list()#메소드 호출
         #rgb 트랙바 숨김 이벤트 해제
         self.rgb_frame.hide()
+        self.select_frame.hide()
         self.rgb_frame.close_trackbar()
         self.ctrl_widget.show()
+        self.select_flag = ST.NONE #상태 초기화
 
     def click_cancle(self):
         #rgb 트랙바 숨김 이벤트 해제
         self.rgb_frame.hide()
+        self.select_frame.hide()
         self.rgb_frame.close_trackbar()
         self.ctrl_widget.show()
         self.img = self.prev_img
         self.display_img_widget(self.img)
+        self.select_flag = ST.NONE #상태 초기화
+
+    def click_select(self):
+        self.ctrl_widget.hide()
+        self.select_frame.show()
+
+    def click_blur(self):
+        self.select_flag = ST.BLUR
+    def click_cut(self):
+        self.select_flag = ST.CUT
+    def click_mosaic(self):
+        self.select_flag = ST.MOSAIC
+    def click_sharp(self):
+        self.select_flag = ST.SHARP
+    
+    def click_resize(self):
+        h, w = self.img.shape[:2]
+        m = max(h,w)
+        if m > 700:
+            self.add_img_list
+            if h > w:
+                self.img = self.img_resize(self.img, height = 700)
+            else :
+                self.img = self.img_resize(self.img , width= 700)
+            self.display_img_widget(self.img)
 
     def flip(self):
         self.add_img_list()#메소드 호출
         self.img = self.myflip(self.img)
         self.display_img_widget(self.img)
-        self.click_ok
+        self.click_ok()
         
 
     def rotate(self):
         self.add_img_list()#메소드 호출
         self.img = self.myrotate_90(self.img)
         self.display_img_widget(self.img)
-        self.click_ok
+        self.click_ok()
         
         
     #점묘법 필터 
@@ -328,22 +372,95 @@ class Photoshop(QMainWindow):
         self.add_img_list()#메소드 호출
         self.inversion()
     
-    #선택 영역 작업
-    def roi_processing(self):
-        if self.select_flag == ST.NONE: #초기 상태
+    #현재 선택 상태에 따라 작업을 달리합니다. 
+    def roi_processing(self,p):
+        if self.select_flag == ST.NONE:
             pass
-        elif self.select_flag == ST.BLUR: #블러링 상태
-            pass
-        elif self.select_flag == ST.CUT:
-            pass
-        elif self.select_flag == ST.SHARP:
-            pass
-        elif self.select_flag == ST.MOSAIC:
-            pass
+        elif self.select_flag == ST.CUT and self.mouse_flag == ST.LBUTTON_UP:
+            self.cut(p)
+        elif self.select_flag == ST.BLUR and self.mouse_flag == ST.LBUTTON_DOWN:
+            self.blur(p)
+        elif self.select_flag == ST.SHARP and self.mouse_flag == ST.LBUTTON_DOWN:
+            self.sharp(p)
+        elif self.select_flag == ST.MOSAIC and self.mouse_flag == ST.LBUTTON_DOWN:
+            self.mosaic(p)
 
+    def get_roi_pos(self,p):
+        #(start_i, start_j)
+        #(end_i, end_j)
+        #총 4사분면 x -->방향   오른쪽방향 start_x < end_x 아래방향 start_y < end_y
+        start_y,start_x = p[1]-100, p[0]-100
+        end_y , end_x = p[3]-100, p[2]-100
+        h, w = self.img.shape[:2]
+        
+        if start_x < 0 : start_x = 0
+        if start_y < 0 : start_y = 0
+        if end_x < 0 : end_x = 0
+        if end_y < 0 : end_y = 0
+        
+        if start_x > w : start_x = w
+        if end_x > w : end_x = w
+        if start_y > h : start_y = h
+        if end_y > h : end_y = h
+
+        col , row = abs(start_x-end_x), abs(start_y-end_y)
+        x1, y1, x2,y2 = start_x, start_y, end_x,end_y
+        print(x1,y1,x2,y2)
+        return min(x1,x2), min(y1,y2), col,row
+        
+        #return x1,y1,col,row #col, row 리턴
+
+    def get_square_roi(self,p):
+        #cv2.rectangle(img_back, (m_j-r//2,m_i-r//2),(m_j+r//2,m_i+r//2),(165,165,165),-1)
+        x1,y1,x2,y2 = p.x()-112,p.y()-112,p.x()+12-100,p.y()+12-100 #saturate 방식으로 클립을 딴다.
+        h, w = self.img.shape[:2]
+        if x1 < 0 : x1 = 0
+        if x2 < 0 : x2 = 0
+        if y1 < 0 : y1 = 0
+        if y2 < 0 : y2 = 0
+        
+        if x1 > w : x1 = w
+        if x2 > w : x2 = w
+        if y1 > h : y1 = h
+        if y2 > h : y2 = h
+
+        print(x1,y1,x2,y2)
+        return x1,y1,x2,y2
 #############################################-------------########################################################
 
 ############################################이미지 프로세싱#########################################################
+
+    def blur(self,p):#클릭
+        x1,y1,x2,y2 = self.get_square_roi(p)
+        roi = self.img[y1:y2, x1:x2]   # 관심영역 지정
+        roi = cv2.blur(roi, (25, 25)) # 블러(모자이크) 처리
+        self.img[y1:y2, x1:x2] = roi   # 원본 이미지에 적용
+        self.display_img_widget(self.img)
+
+    def sharp(self,p):#클릭기준
+        x1,y1,x2,y2 = self.get_square_roi(p)
+        roi = self.img[y1:y2, x1:x2]   # 관심영역 지정
+        kernel = np.array([[-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1], [-1,-1,25,-1,-1],[-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1]]) #가운데 영역만 돋보이게 한다.
+        kernel = np.full((7,7),-1)
+        kernel[3][3] = 49
+        if (roi is not None):
+            roi = cv2.filter2D(roi, -1, kernel)#샤프닝 처리
+            self.img[y1:y2, x1:x2] = roi
+            self.display_img_widget(self.img)
+
+    def cut(self,p):#네모 드래그 박스 기준
+        if self.focus_image_frame_flag :#이미지 위에 있을 때만 
+            print('cut 불림')
+            x,y,w,h = self.get_roi_pos(p)
+            if w > 0 and h > 0:
+                if self.img_list_cnt == -1:
+                    d_img = self.img_original[y:y+h, x:x+w].copy()
+                else :
+                    d_img = self.img_list[self.img_list_cnt][y:y+h, x:x+w].copy()
+                print(x,y,w,h)# 74 33 131 116
+                self.img = d_img
+                self.display_img_widget(self.img)
+
     def inversion(self):
         self.img = 255 - self.img
         self.display_img_widget(self.img)
@@ -396,7 +513,7 @@ class Photoshop(QMainWindow):
 
     #이미지 w, h 비율대로 resize 해서 왜곡을 피한다.
     #코드 사용 예 image = image_resize(image, height = 800)
-    def img_resize(image, width = None, height = None, inter = cv2.INTER_AREA):#inter area는 cv2제공하는 양선형 보간법이다.
+    def img_resize(self,image, width = None, height = None, inter = cv2.INTER_AREA):#inter area는 cv2제공하는 양선형 보간법이다.
         if width is None and height is None:#widght, height 값이 없으면 연산 안 함.
             return image
         # 이미지 widght, height
@@ -471,9 +588,13 @@ class Photoshop(QMainWindow):
             #
             #   (151,816)           (827,816)
             img_back = np.full_like(img,255) 
-            cv2.circle(img_back, (m_j,m_i),r,(165,165,165),-1)
+            if self.mouse_flag == ST.LBUTTON_DOWN:#클릭하면 네모로 바뀜.
+                cv2.rectangle(img_back, (m_j-r//2,m_i-r//2),(m_j+r//2,m_i+r//2),(165,165,165),-1)
+            else:
+                cv2.circle(img_back, (m_j,m_i),r,(165,165,165),-1)
+
             img = cv2.bitwise_and(img_back, img)          #마우스 움직임에 따라 원 생성 and연산이기 때문에 제로 이미지 and하면 검은색 이미지가 생성된다. 
-            self.display_img_widget(img)
+            self.img_widget.set_image(img,False)
 
 #############################################----------------#########################################################
 
@@ -498,16 +619,20 @@ class ImageWidget(QtWidgets.QWidget):
         self.event_flag = event_flag #이벤트 플래그 설정
         self.parent = parent
         
-    def set_image(self,img): #이미지 변경
+    def set_image(self,img,flag = True): #이미지 변경
         h,w = img.shape[:2]
-        self.image_frame.setGeometry(0, 0, w,h)
-        self.image = img
-        self.show_image()
+        self.image_frame.resize(w,h)
+        #print(w,h)
+        if flag :
+            self.image = img
+            self.show_image(self.image)
+        else : 
+            self.show_image(img)
 
     @pyqtSlot()
-    def show_image(self): # Qimage 객체가 필요하다. 
-        self.image = QtGui.QImage(self.image.data, self.image.shape[1], self.image.shape[0], QtGui.QImage.Format_RGB888).rgbSwapped()
-        self.image_frame.setPixmap(QtGui.QPixmap.fromImage(self.image))
+    def show_image(self,img): # Qimage 객체가 필요하다. 
+        img = QtGui.QImage(img.data, img.shape[1], img.shape[0], QtGui.QImage.Format_RGB888).rgbSwapped()
+        self.image_frame.setPixmap(QtGui.QPixmap.fromImage(img))
 
     def enterEvent_2(self, event): #들어온다.
         if self.event_flag :

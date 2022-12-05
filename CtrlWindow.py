@@ -59,9 +59,9 @@ class CtrlWindow(QFrame):
         self.tab1.layout.addWidget(btn_filter_2)
 
         btn_filter_3 = QPushButton('선택 영역 변환')#todo
-        btn_filter_3.clicked.connect(self.parent.filter_2)
+        btn_filter_3.clicked.connect(self.parent.click_select)
         self.tab1.layout.addWidget(btn_filter_3)
 
         btn_resize = QPushButton('화면 맞추기')#todo
-        btn_resize.clicked.connect(self.parent.filter_2)
+        btn_resize.clicked.connect(self.parent.click_resize)
         self.tab1.layout.addWidget(btn_resize)

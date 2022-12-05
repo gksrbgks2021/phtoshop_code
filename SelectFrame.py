@@ -35,19 +35,15 @@ class SelectFrame(QFrame):
     def init_rgb_slider(self): #rgb 슬라이더 바 만듭니다.
 
         btn_ok = QPushButton('잘라내기')
-        btn_ok.clicked.connect(self.parent.click_ok)
+        btn_ok.clicked.connect(self.parent.click_cut)
         self.tab1.layout.addWidget(btn_ok)
 
         btn_ok = QPushButton('샤프닝')
-        btn_ok.clicked.connect(self.parent.click_ok)
+        btn_ok.clicked.connect(self.parent.click_sharp)
         self.tab1.layout.addWidget(btn_ok)
         
         btn_ok = QPushButton('블러링')
-        btn_ok.clicked.connect(self.parent.click_ok)
-        self.tab1.layout.addWidget(btn_ok)
-        
-        btn_ok = QPushButton('모자이크')
-        btn_ok.clicked.connect(self.parent.click_ok)
+        btn_ok.clicked.connect(self.parent.click_blur)
         self.tab1.layout.addWidget(btn_ok)
 
         btn_ok = QPushButton('')
