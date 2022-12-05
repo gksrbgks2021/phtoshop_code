@@ -103,11 +103,17 @@ class Photoshop(QMainWindow):
         
     #메뉴바 추가
     def add_menubar(self):
+        #키보드 이벤트 추가. 
         exitAction = QAction('&Exit', self)
         exitAction.setShortcut('Esc')#강제종료 키 esc
         exitAction.setStatusTip('Exit application')
         exitAction.triggered.connect(qApp.quit)
 
+        RedoAction = QAction('&Redo', self)
+        RedoAction.setShortcut(QtGui.QKeySequence("Ctrl+Z"))#redo 키
+        RedoAction.setStatusTip('되돌아가기')
+        RedoAction.triggered.connect(self.redo)
+        
         #상태바 추가
         self.add_statusbar()
 
@@ -414,7 +420,7 @@ class Photoshop(QMainWindow):
         img = cv2.merge(rgb_list) #rgb 합침
         return img
     
-    #점묘법 필터 함수 
+    #점묘법 필터 함수
     def pointillism_filter(self,img):
         img_noise = self.add_noise(img.copy(),255)
         kernel = np.ones((3*weight+1,3*weight+1), np.uint8) / ((3*weight+1) * (3*weight+1) ) # 가중치에 따른 마스크 생성
@@ -434,30 +440,17 @@ class Photoshop(QMainWindow):
     #화면에 마우스 위치 보여주는 UI
     def mouse_display(self,p,r=25):
         if self.img_original.sum() > 0 and self.focus_image_frame_flag :#이미지 위에 마우스 있을때만. 
-            #print(self.img_widget.x,self.img_widget.y)
             img = self.img.copy() 
-            i , j = img.shape[:2] #이미지 상의 i, j 
-
             #마우스 (i,j) 좌표를 이미지 상의 좌표로 가져온다. 
             m_j,m_i = p.x()-100,p.y()-100
-
-            img_center_i,img_center_j = i//2 , j//2  #이미지 중심 좌표 
-
-            n = r // 2 + 1
             # (100 100 700 700 ) geom           
-            #   (100,100)  start    (790,142)
+            #   (100,100)  start   ()
             #
             #   (151,816)           (827,816)
-            #roi = img[y-n:y+n, x-n:x+n]
-            #print(roi.sum())
-            #if roi.sum() == 0 : return
-
             img_back = np.full_like(img,255) 
-
-            cv2.circle(img_back, (m_j,m_i),r,(150,150,150),-1)
-            img = cv2.bitwise_and(img_back, img)          #마우스 움직임에 따라 원 생성 
+            cv2.circle(img_back, (m_j,m_i),r,(165,165,165),-1)
+            img = cv2.bitwise_and(img_back, img)          #마우스 움직임에 따라 원 생성 and연산이기 때문에 제로 이미지 and하면 검은색 이미지가 생성된다. 
             self.display_img_widget(img)
-                
 
 #############################################----------------#########################################################
 
