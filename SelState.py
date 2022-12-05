@@ -5,3 +5,6 @@ class SelState(Enum):
     BLUR = 2 #블러링
     SHARP = 3 #샤프닝
     MOSAIC = 4 #모자이크
+    
+    LBUTTON_DOWN = 10 #마우스 클릭 상태
+    LBUTTON_UP = 11 #마우스 클릭에서 뗀 상태
