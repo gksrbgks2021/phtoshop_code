@@ -12,6 +12,7 @@ import re
 from CtrlWindow import CtrlWindow 
 from RgbFrame import RgbFrame
 from MouseObserver import MouseObserver
+from SelState import SelState as ST
 
 class Photoshop(QMainWindow):
     
@@ -25,6 +26,8 @@ class Photoshop(QMainWindow):
 
     widget_cnt  = 0 
     focus_image_frame_flag = False #자식 마우스 이벤트 플래그
+
+    select_flag = ST.NONE # 초기 상태.
 
     #rgb는 각 r,g,b 의 평균 값을 계산한거 !!!!
     rgb = [128, 128, 128]
@@ -231,10 +234,11 @@ class Photoshop(QMainWindow):
 
     ######################################## 시그널 연결 ########################3
     def handle_pressed(self, window_pos, global_pos):
-        print('시그널 프레스')
-        
+        #print('시그널 프레스')
+        pass
     def handle_relase(self, window_pos, global_pos):
-        print('시그널 릴리즈')
+        #print('시그널 릴리즈')
+        pass
 
     def handle_moved(self, w_p, g_p):
         self.mouse_display(w_p)
@@ -301,7 +305,12 @@ class Photoshop(QMainWindow):
 
     #돌아가기    
     def redo(self): 
-        if self.img_list_cnt >= 0:
+        if self.img_list_cnt == 0:
+            self.img_list_cnt = -1
+            self.img = self.img_original.copy()
+            self.display_img_widget(self.img)
+
+        elif self.img_list_cnt > 0:
             print(self.img_list_cnt)
             self.img_list_cnt -= 1
             self.img = self.img_list[self.img_list_cnt]
@@ -318,6 +327,19 @@ class Photoshop(QMainWindow):
     def invert(self):
         self.add_img_list()#메소드 호출
         self.inversion()
+    
+    #선택 영역 작업
+    def roi_processing(self):
+        if self.select_flag == ST.NONE: #초기 상태
+            pass
+        elif self.select_flag == ST.BLUR: #블러링 상태
+            pass
+        elif self.select_flag == ST.CUT:
+            pass
+        elif self.select_flag == ST.SHARP:
+            pass
+        elif self.select_flag == ST.MOSAIC:
+            pass
 
 #############################################-------------########################################################
 
