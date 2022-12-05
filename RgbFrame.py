@@ -109,7 +109,6 @@ class RgbFrame(QFrame):
         if self.flag : return #트랙바가 꺼져있으면 작동 x, 그래야 다음 트랙바 불러올때 작동안함. 
         dif = self.r_level.value() - self.rgb_mean[0] #차이 만큼 변화 시킨다.
         self.parent.change_img_rgb(dif,0)#부모에게 차이를 넘겨준다
-    
         
 
     def change_g(self):
