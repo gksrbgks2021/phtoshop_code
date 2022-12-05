@@ -20,7 +20,7 @@ class RgbFrame(QFrame):
         self.rootVbox = QVBoxLayout()
         self.tab1 = QWidget()
         self.tab1.setObjectName('rgb')
-        self.tab1.setStyleSheet('QWidget#parent{border : 2px solid gray;}')#부모 에게만 경계선 지정하기.
+        self.tab1.setStyleSheet('QWidget#parent{border : 2px solid gray;')#부모 에게만 경계선 지정하기.
         
         #탭 추가
         self.init_tab1()
@@ -151,3 +151,7 @@ class RgbFrame(QFrame):
         if rb:#이미지 바꿨을때.
             self.rgb = rb
             self.parent.update_rgb(self.rgb) 
+
+            btn_clip = QPushButton('잘라내기')#todo
+        btn_clip.clicked.connect(self.parent.filter_2)
+        self.tab1.layout.addWidget(btn_clip)

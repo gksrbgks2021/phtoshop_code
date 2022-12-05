@@ -46,24 +46,21 @@ class CtrlWindow(QFrame):
         btn_rotate_90.clicked.connect(self.parent.rotate)
         self.tab1.layout.addWidget(btn_rotate_90)
 
+        btn_filter_3 = QPushButton('반전 필터')
+        btn_filter_3.clicked.connect(self.parent.invert)
+        self.tab1.layout.addWidget(btn_filter_3)
+
         btn_filter_1 = QPushButton('점묘법 필터1')
-        btn_filter_1.setIcon(QIcon('Icons/rgb.png'))
         btn_filter_1.clicked.connect(self.parent.filter_1)
         self.tab1.layout.addWidget(btn_filter_1)
         
         btn_filter_2 = QPushButton('점묘법 필터2')
-        btn_filter_2.setIcon(QIcon('Icons/rgb.png'))
         btn_filter_2.clicked.connect(self.parent.filter_2)
         self.tab1.layout.addWidget(btn_filter_2)
 
-        btn_filter_3 = QPushButton('반전 필터')#todo
-        btn_filter_3.setIcon(QIcon('Icons/rgb.png'))
+        btn_filter_3 = QPushButton('선택 영역 변환')#todo
         btn_filter_3.clicked.connect(self.parent.filter_2)
         self.tab1.layout.addWidget(btn_filter_3)
-
-        btn_clip = QPushButton('잘라내기')#todo
-        btn_clip.clicked.connect(self.parent.filter_2)
-        self.tab1.layout.addWidget(btn_clip)
 
         btn_resize = QPushButton('화면 맞추기')#todo
         btn_resize.clicked.connect(self.parent.filter_2)

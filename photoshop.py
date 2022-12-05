@@ -88,7 +88,6 @@ class Photoshop(QMainWindow):
         #self.layout = QtWidgets.QFormLayout(self.img_widget)
         self.img_widget.setGeometry(140,130,700,700)#이미지 최대 크기 700 700
         self.img_widget.move(100,100)
-        self.img_widget.setStyleSheet('border : 2px solid gray;')
         self.ctrl_widget = CtrlWindow(self)
         self.ctrl_widget.setGeometry(900,130,250,470)
         
@@ -103,7 +102,7 @@ class Photoshop(QMainWindow):
         
     #메뉴바 추가
     def add_menubar(self):
-        #키보드 이벤트 추가. 
+        #키보드 이벤트 추가.
         exitAction = QAction('&Exit', self)
         exitAction.setShortcut('Esc')#강제종료 키 esc
         exitAction.setStatusTip('Exit application')
@@ -165,7 +164,7 @@ class Photoshop(QMainWindow):
 
     def save_img(self):
         if self.img is not None:
-            img_file_path, _ = QFileDialog.getSaveFileName(self, "Save Image", 
+            img_file_path, _ = QFileDialog.getSaveFileName(self, "Save Image",
                 "", "PNG Files (*.png);;JPG Files (*.jpeg *.jpg );;")
             if img_file_path and self.img is not None:
                 print('저장진행')
@@ -222,7 +221,6 @@ class Photoshop(QMainWindow):
         self.prev_img = self.img 
         
         if self.img_list_cnt < 0 or len(self.img_list)-1 <= self.img_list_cnt:
-            
             self.img_list.append(self.prev_img)
         else:
             self.img_list[self.img_list_cnt] = self.prev_img
@@ -279,7 +277,6 @@ class Photoshop(QMainWindow):
         self.add_img_list()#메소드 호출
         self.img = self.pointillism_filter(self.img)
         self.display_img_widget(self.img)
-        
 
     def filter_2(self):
         self.add_img_list()#메소드 호출
@@ -316,11 +313,18 @@ class Photoshop(QMainWindow):
             self.img = self.img_list[self.img_list_cnt]
             self.img_list_cnt += 1
             self.display_img_widget(self.img)
-            
+
+    #반전 필터
+    def invert(self):
+        self.add_img_list()#메소드 호출
+        self.inversion()
 
 #############################################-------------########################################################
 
 ############################################이미지 프로세싱#########################################################
+    def inversion(self):
+        self.img = 255 - self.img
+        self.display_img_widget(self.img)
 
     #트랙바 rgb 연산
     def change_img_rgb(self,dif,rgb_flag):
@@ -338,9 +342,6 @@ class Photoshop(QMainWindow):
         
     def update_rgb(self, rgb):
         self.rgb = rgb
-    
-    def update_rgb_2d_array(self):
-        pass
 
     def update_image_rgb(self):
         im = cv2.merge(self.rgb_2d_array)
